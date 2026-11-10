@@ -1,4 +1,4 @@
-# Pack-Arena – Fußball-Pack-Simulator
+# Ariel's Epic Packs – Fußball-Pack-Simulator
 
 Spielbarer Pack-Opening-Simulator (React + TypeScript + Vite), komplett ohne Backend.
 

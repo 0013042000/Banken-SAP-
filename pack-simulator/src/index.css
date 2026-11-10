@@ -190,3 +190,11 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 .hold-text { font-size: 1.25rem; font-weight: 900; color: var(--gold); text-shadow: 0 0 16px rgba(245,197,66,0.8); }
 .stage-hint { position: absolute; bottom: 22px; left: 14px; font-size: 0.75rem; color: rgba(154,166,196,0.7); z-index: 3; }
 .stage { min-height: 76dvh; }
+
+/* Markenname */
+.brand { min-width: 0; font-size: 1.05rem; white-space: nowrap; }
+.brand-text { overflow: hidden; text-overflow: ellipsis; }
+.brand-text b { color: var(--gold); text-shadow: 0 0 12px rgba(245,197,66,0.6); font-weight: 900; }
+.toggles { flex-shrink: 0; }
+@media (max-width: 400px) { .toggle { padding: 0 10px; font-size: 0.82rem; } .brand { font-size: 0.98rem; } }
+@media (max-width: 385px) { .brand-text { display: flex; flex-direction: column; line-height: 1.05; overflow: visible; } .brand-text b { font-size: 0.8em; letter-spacing: 1px; text-transform: uppercase; } }

@@ -27,7 +27,7 @@ export default function App(): ReactElement {
   return (
     <div className="app" onPointerDown={unlockAudio}>
       <header className="topbar">
-        <div className="brand"><span className="brand-ball">⚽</span> Pack-Arena</div>
+        <div className="brand"><span className="brand-ball">⚽</span><span className="brand-text"><b>Ariel's</b> Epic Packs</span></div>
         <div className="toggles">
           <button type="button" className={`toggle${settings.dreamLuck ? ' on' : ''}`} onClick={() => { sfx.tap(); setSettings((s) => ({ ...s, dreamLuck: !s.dreamLuck })); }} aria-pressed={settings.dreamLuck}>
             ✨ Traumglück
