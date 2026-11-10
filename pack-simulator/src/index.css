@@ -165,3 +165,12 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
   .card-sm { width: 120px; }
 }
 @media (prefers-reduced-motion: reduce) { .pack, .stage-lights, .particles span { animation: none; } }
+
+/* Porträts */
+.card-figure.has-img { overflow: hidden; border-radius: 10px 10px 40% 40%; width: 58%; aspect-ratio: 4 / 5; background: rgba(0,0,0,0.25); box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35); }
+.card-img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+.card-legend .card-figure.has-img { box-shadow: inset 0 0 0 2px rgba(245,197,66,0.6); filter: sepia(0.25) contrast(1.05); }
+.credits { list-style: none; padding: 0; margin: 0; width: 100%; max-width: 640px; font-size: 0.78rem; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+.credits a { color: var(--neon); word-break: break-all; }
+.credits strong { color: var(--text); }
+.disclaimer button { background: none; border: 0; color: inherit; text-decoration: underline; padding: 0; font: inherit; min-height: 32px; }

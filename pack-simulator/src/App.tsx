@@ -6,8 +6,9 @@ import { setMuted, sfx, unlockAudio } from './game/sound';
 import { FreeMode } from './components/FreeMode';
 import { DuelMode } from './components/DuelMode';
 import { Collection } from './components/Collection';
+import { Credits } from './components/Credits';
 
-type Tab = 'frei' | 'duell' | 'sammlung';
+type Tab = 'frei' | 'duell' | 'sammlung' | 'credits';
 
 export default function App(): ReactElement {
   const [tab, setTab] = useState<Tab>('frei');
@@ -41,7 +42,10 @@ export default function App(): ReactElement {
         {tab === 'frei' && <FreeMode dreamLuck={settings.dreamLuck} onCollect={collect} />}
         {tab === 'duell' && <DuelMode dreamLuck={settings.dreamLuck} />}
         {tab === 'sammlung' && <Collection collection={collection} onReset={() => setCollection({})} />}
-        <footer className="disclaimer">Eigener Simulator · fiktive Bewertungen und Ziehchancen · keine Verbindung zu EA</footer>
+        {tab === 'credits' && <Credits onClose={() => go('frei')} />}
+        <footer className="disclaimer">
+          Eigener Simulator · fiktive Bewertungen und Ziehchancen · keine Verbindung zu EA · <button type="button" onClick={() => go('credits')}>Bildnachweise</button>
+        </footer>
       </main>
 
       <nav className="tabbar">

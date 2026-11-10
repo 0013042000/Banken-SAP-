@@ -1,5 +1,10 @@
 import type { ReactElement } from 'react';
+import { useState } from 'react';
 import { FLAGS, initials, statsFor, type Player } from '../data/players';
+import credits from '../data/credits.json';
+
+const HAS_PORTRAIT = new Set(Object.keys(credits as Record<string, unknown>));
+const portraitUrl = (id: string): string => `${import.meta.env.BASE_URL}portraits/${id}.jpg`;
 
 interface Props {
   readonly player: Player;
@@ -20,6 +25,8 @@ export const Silhouette = (): ReactElement => (
 export const Card = ({ player, size = 'md', highlight = false, count }: Props): ReactElement => {
   const f = FLAGS[player.nation] ?? { flag: '🏳️', name: player.nation };
   const stats = statsFor(player);
+  const [imgFailed, setImgFailed] = useState(false);
+  const showImg = HAS_PORTRAIT.has(player.id) && !imgFailed;
   return (
     <div className={`card card-${player.cat} card-${size}${highlight ? ' card-highlight' : ''}`}>
       <div className="card-top">
@@ -27,9 +34,15 @@ export const Card = ({ player, size = 'md', highlight = false, count }: Props): 
         <div className="card-pos">{player.pos}</div>
         <div className="card-flag" title={f.name}>{f.flag}</div>
       </div>
-      <div className="card-figure">
-        <Silhouette />
-        <div className="card-initials">{initials(player.name)}</div>
+      <div className={`card-figure${showImg ? ' has-img' : ''}`}>
+        {showImg ? (
+          <img className="card-img" src={portraitUrl(player.id)} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setImgFailed(true)} />
+        ) : (
+          <>
+            <Silhouette />
+            <div className="card-initials">{initials(player.name)}</div>
+          </>
+        )}
       </div>
       <div className="card-name">{player.name}</div>
       <div className="card-cat">{CAT_LABEL[player.cat]}</div>
