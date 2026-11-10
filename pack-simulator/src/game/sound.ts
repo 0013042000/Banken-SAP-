@@ -30,6 +30,7 @@ export const sfx = {
   burst: (): void => { tone(180, 0.5, 'sawtooth', 0.12); tone(900, 0.25, 'triangle', 0.08, 0.05); },
   flip: (): void => tone(660, 0.12, 'triangle', 0.1),
   reveal: (ovr: number): void => { tone(520 + ovr * 4, 0.18, 'triangle', 0.12); tone(780 + ovr * 4, 0.22, 'sine', 0.1, 0.08); },
+  suspense: (): void => { [0, 0.5, 1.0, 1.4, 1.75, 2.0].forEach((w, i) => tone(90 + i * 12, 0.25, 'sine', 0.16, w)); tone(2200, 1.2, 'sine', 0.02, 0.8); },
   walkout: (): void => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.45, 'triangle', 0.14, i * 0.14)); tone(130, 1.2, 'sawtooth', 0.1); },
   win: (): void => { [523, 659, 784, 1046, 1318].forEach((f, i) => tone(f, 0.35, 'sine', 0.14, i * 0.12)); },
 };

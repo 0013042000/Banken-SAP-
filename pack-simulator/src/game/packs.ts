@@ -32,17 +32,17 @@ export const DREAM_LUCK_MULTIPLIER: Readonly<Record<Tier, number>> = {
 export const PACKS: Readonly<Record<PackType, PackConfig>> = {
   gold: {
     type: 'gold', label: 'Gold-Pack', tagline: 'Gemischte Spieler · mind. 1× 80+', cards: 5,
-    weights: { basis: 36, silber: 30, gold: 22, elite: 7, star: 3.5, top: 1.5 },
+    weights: { basis: 22, silber: 26, gold: 26, elite: 13, star: 8, top: 5 },
     guarantee: { text: 'Mindestens eine Karte mit 80+', test: (p) => p.ovr >= 80 },
   },
   star: {
     type: 'star', label: 'Star-Pack', tagline: 'Starke Auswahl · mind. 1× 88+', cards: 5,
-    weights: { basis: 14, silber: 22, gold: 28, elite: 18, star: 12, top: 6 },
+    weights: { basis: 8, silber: 16, gold: 28, elite: 20, star: 16, top: 12 },
     guarantee: { text: 'Mindestens eine Karte mit 88+', test: (p) => p.ovr >= 88 },
   },
   legend: {
     type: 'legend', label: 'Legenden-Pack', tagline: 'Ikonen · mind. 1 Legende mit 90+', cards: 5,
-    weights: { basis: 8, silber: 16, gold: 26, elite: 20, star: 16, top: 14 },
+    weights: { basis: 5, silber: 10, gold: 24, elite: 21, star: 18, top: 22 },
     guarantee: { text: 'Mindestens eine Legende mit 90+', test: (p) => p.cat === 'legend' && p.ovr >= 90 },
   },
 };
@@ -50,6 +50,8 @@ export const PACKS: Readonly<Record<PackType, PackConfig>> = {
 export const PACK_ORDER: readonly PackType[] = ['gold', 'star', 'legend'];
 
 export const WALKOUT_MIN = 90;
+/** Ab dieser Bewertung bekommt auch die zweitbeste Karte einen eigenen Auftritt. */
+export const FEATURE_MIN = 86;
 
 const pick = <T,>(arr: readonly T[], rnd: () => number): T => arr[Math.floor(rnd() * arr.length)]!;
 
