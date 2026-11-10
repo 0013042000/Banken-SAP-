@@ -5,6 +5,8 @@ import { bestOf, PACKS, WALKOUT_MIN, type PackType } from '../game/packs';
 import { sfx } from '../game/sound';
 import { Card } from './Card';
 
+const buzz = (pattern: number | number[]): void => { try { navigator.vibrate?.(pattern); } catch { /* nicht unterstützt */ } };
+
 export type Phase =
   | { kind: 'idle' }
   | { kind: 'burst' }
@@ -24,6 +26,8 @@ interface Props {
   readonly onNext?: () => void;
   readonly title?: string;
   readonly subtitle?: string;
+  /** Pack ohne Animation direkt als Zusammenfassung zeigen (z. B. nach Neuladen). */
+  readonly revealed?: boolean;
 }
 
 const POS_NAMES: Record<string, string> = {
@@ -32,7 +36,7 @@ const POS_NAMES: Record<string, string> = {
   LF: 'Linker Flügel', RF: 'Rechter Flügel', MS: 'Mittelstürmer', ST: 'Stürmer',
 };
 
-export const PackOpening = ({ packType, cards, onOpen, onDone, nextLabel, onNext, title, subtitle }: Props): ReactElement => {
+export const PackOpening = ({ packType, cards, onOpen, onDone, nextLabel, onNext, title, subtitle, revealed = false }: Props): ReactElement => {
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
   const timers = useRef<number[]>([]);
   const runId = useRef(0);
@@ -47,16 +51,21 @@ export const PackOpening = ({ packType, cards, onOpen, onDone, nextLabel, onNext
     if (!cards) { setPhase({ kind: 'idle' }); return; }
     const id = ++runId.current;
     startedAt.current = Date.now();
+    if (revealed) { setPhase({ kind: 'summary' }); return; }
     const steps: Array<{ at: number; run: () => void }> = [];
+    const walkouts = cards.filter((c) => c.ovr >= WALKOUT_MIN).length;
+    const raw = 800 + (cards.length - walkouts) * 920 + walkouts * 2600;
+    const k = Math.min(1, 6500 / raw);
+    const d = (ms: number): number => Math.round(ms * k);
     let t = 0;
     steps.push({ at: t, run: () => { setPhase({ kind: 'burst' }); sfx.burst(); } });
-    t += 800;
+    t += d(800);
     cards.forEach((c, i) => {
       const walk = c.ovr >= WALKOUT_MIN;
-      if (walk) { steps.push({ at: t, run: () => { setPhase({ kind: 'walkout', index: i }); sfx.walkout(); } }); t += 1000; }
-      steps.push({ at: t, run: () => { setPhase({ kind: 'flag', index: i }); sfx.flip(); } }); t += walk ? 350 : 260;
-      steps.push({ at: t, run: () => { setPhase({ kind: 'pos', index: i }); sfx.flip(); } }); t += walk ? 350 : 260;
-      steps.push({ at: t, run: () => { setPhase({ kind: 'card', index: i }); sfx.reveal(c.ovr); } }); t += walk ? 1000 : 400;
+      if (walk) { steps.push({ at: t, run: () => { setPhase({ kind: 'walkout', index: i }); sfx.walkout(); buzz([60, 40, 60, 40, 120]); } }); t += d(800); }
+      steps.push({ at: t, run: () => { setPhase({ kind: 'flag', index: i }); sfx.flip(); } }); t += d(walk ? 300 : 260);
+      steps.push({ at: t, run: () => { setPhase({ kind: 'pos', index: i }); sfx.flip(); } }); t += d(walk ? 300 : 260);
+      steps.push({ at: t, run: () => { setPhase({ kind: 'card', index: i }); sfx.reveal(c.ovr); buzz(walk ? [40, 30, 80] : 25); } }); t += d(walk ? 800 : 400);
     });
     steps.push({ at: t, run: () => { setPhase({ kind: 'summary' }); onDone?.(); } });
     timers.current = steps.map((s) => window.setTimeout(() => { if (runId.current === id) s.run(); }, s.at));

@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Player } from '../data/players';
 import { bestOf, drawPack, PACK_ORDER, PACKS, type PackType } from '../game/packs';
 import { sfx } from '../game/sound';
@@ -29,10 +29,25 @@ const fresh = (packType: PackType): DuelState => ({
 
 const roundScore = (pack: readonly Player[] | null): number => (pack ? bestOf(pack).ovr : 0);
 
+const DUEL_KEY = 'fps.duel.v1';
+const loadDuel = (): DuelState | null => {
+  try { const raw = localStorage.getItem(DUEL_KEY); return raw ? (JSON.parse(raw) as DuelState) : null; } catch { return null; }
+};
+const saveDuel = (d: DuelState | null): void => {
+  try { if (d) localStorage.setItem(DUEL_KEY, JSON.stringify(d)); else localStorage.removeItem(DUEL_KEY); } catch { /* ignore */ }
+};
+
 export const DuelMode = ({ dreamLuck }: Props): ReactElement => {
-  const [duel, setDuel] = useState<DuelState | null>(null);
-  const [cards, setCards] = useState<readonly Player[] | null>(null);
-  const busy = useRef(false);
+  const [duel, setDuel] = useState<DuelState | null>(() => loadDuel());
+  // Nach einem Neuladen mitten im Zug: bereits gezogenes Pack direkt wieder anzeigen
+  const [cards, setCards] = useState<readonly Player[] | null>(() => {
+    const d = loadDuel();
+    return d && d.stage === 'open' ? d.rounds[d.round]?.packs[d.turn] ?? null : null;
+  });
+  const busy = useRef(cards !== null);
+  const restored = useRef(cards !== null);
+
+  useEffect(() => { saveDuel(duel); }, [duel]);
 
   if (!duel) {
     return (
@@ -58,6 +73,7 @@ export const DuelMode = ({ dreamLuck }: Props): ReactElement => {
   const open = (): void => {
     if (busy.current || cards) return;
     busy.current = true;
+    restored.current = false;
     const drawn = drawPack(duel.packType, dreamLuck);
     setDuel((d) => {
       if (!d) return d;
@@ -159,6 +175,7 @@ export const DuelMode = ({ dreamLuck }: Props): ReactElement => {
         onOpen={open}
         onNext={afterPack}
         nextLabel={duel.turn === 0 ? `Weiter: ${NAMES[1]} ist dran` : 'Ergebnisse vergleichen'}
+        revealed={restored.current}
       />
     </section>
   );
