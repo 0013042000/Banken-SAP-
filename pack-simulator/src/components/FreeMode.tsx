@@ -8,9 +8,10 @@ import { PackOpening } from './PackOpening';
 interface Props {
   readonly dreamLuck: boolean;
   readonly onCollect: (cards: readonly Player[]) => void;
+  readonly onTeam: () => void;
 }
 
-export const FreeMode = ({ dreamLuck, onCollect }: Props): ReactElement => {
+export const FreeMode = ({ dreamLuck, onCollect, onTeam }: Props): ReactElement => {
   const [packType, setPackType] = useState<PackType>('gold');
   const [cards, setCards] = useState<readonly Player[] | null>(null);
   const [isDemo, setIsDemo] = useState(false);
@@ -54,6 +55,7 @@ export const FreeMode = ({ dreamLuck, onCollect }: Props): ReactElement => {
         cards={cards}
         onOpen={open}
         onNext={next}
+        onTeam={isDemo ? undefined : onTeam}
         nextLabel={isDemo ? 'Demo beenden' : 'Nächstes Pack'}
         title={isDemo ? 'Demo-Walkout' : undefined}
         subtitle={isDemo ? 'Nur Vorschau – zählt nicht für Sammlung oder Duell' : (dreamLuck ? '✨ Traumglück aktiv' : undefined)}

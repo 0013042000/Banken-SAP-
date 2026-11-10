@@ -1,15 +1,21 @@
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react';
 import { FLAGS, type Player } from '../data/players';
-import { bestOf, FEATURE_MIN, PACKS, WALKOUT_MIN, type PackType } from '../game/packs';
-import { sfx } from '../game/sound';
+import { bestOf, PACKS, type PackType } from '../game/packs';
+import { buildSteps, revealOrder, styleFor, type RevealStep, type RevealStyle, type StepKind } from '../game/reveal';
+import { sfx, stopAllSounds } from '../game/sound';
 import { Card } from './Card';
 
+/** Vibration ist optional und wird nicht von jedem Gerät unterstützt – darf nie blockieren. */
 const buzz = (pattern: number | number[]): void => { try { navigator.vibrate?.(pattern); } catch { /* nicht unterstützt */ } };
+const prefersReducedMotion = (): boolean => {
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
+};
 
-type Kind = 'burst' | 'suspense' | 'flag' | 'pos' | 'name' | 'card';
-interface Step { readonly kind: Kind; readonly index: number; readonly dur: number; readonly hold?: boolean }
+/** Schutz vor Doppeltipps: direkt nach dem Öffnen bzw. nach Erreichen eines Haltebilds. */
+const START_GUARD_MS = 700;
+const HOLD_GUARD_MS = 500;
 
-export type Phase = { kind: 'idle' } | { kind: 'summary' } | { kind: Kind; index: number; hold: boolean };
+type Phase = { kind: 'idle' } | { kind: 'summary' } | { kind: StepKind; index: number; hold: boolean };
 
 interface Props {
   readonly packType: PackType;
@@ -19,6 +25,8 @@ interface Props {
   readonly onDone?: () => void;
   readonly nextLabel?: string;
   readonly onNext?: () => void;
+  /** Optionaler Einstieg in „Mein Team“ aus der Packübersicht. */
+  readonly onTeam?: () => void;
   readonly title?: string;
   readonly subtitle?: string;
   /** Pack ohne Animation direkt als Zusammenfassung zeigen (z. B. nach Neuladen). */
@@ -31,65 +39,69 @@ const POS_NAMES: Record<string, string> = {
   LF: 'Linker Flügel', RF: 'Rechter Flügel', MS: 'Mittelstürmer', ST: 'Stürmer',
 };
 
-/** Enthüllungsreihenfolge: beste Karte zuerst (Walkout), ggf. zweitbeste, dann der Rest aufsteigend. */
-export const revealOrder = (cards: readonly Player[]): { order: readonly Player[]; featured: number } => {
-  const desc = [...cards].sort((a, b) => b.ovr - a.ovr);
-  const featured = desc.length > 1 && desc[1]!.ovr >= FEATURE_MIN ? 2 : 1;
-  const head = desc.slice(0, featured);
-  const rest = desc.slice(featured).sort((a, b) => a.ovr - b.ovr);
-  return { order: [...head, ...rest], featured };
+// Feste, begrenzte Dekor-Elemente (keine Zufallswerte pro Render).
+const EMBERS = Array.from({ length: 16 }, (_, i) => ({ left: (i * 61 + 7) % 100, delay: ((i * 37) % 26) / 10, dur: 2.6 + (i % 5) * 0.35, size: 3 + (i % 3) * 2 }));
+const CONFETTI = Array.from({ length: 28 }, (_, i) => ({ left: (i * 37 + 5) % 100, delay: (i % 7) * 0.13, dur: 1.9 + (i % 5) * 0.25, tone: i % 5 }));
+const STARS = Array.from({ length: 12 }, (_, i) => ({ left: ((i * 29 + 8) % 88) + 6, top: ((i * 53 + 11) % 64) + 8, delay: (i % 6) * 0.35, size: 10 + (i % 4) * 4 }));
+const TUNNEL = [0, 1, 2, 3, 4];
+const cssVar = (name: string, value: string | number): CSSProperties => ({ [name]: value } as CSSProperties);
+
+const nameTag = (st: RevealStyle): string =>
+  st.legend && st.elite ? 'LEGENDÄRE WELTKLASSE' : st.legend ? 'LEGENDE' : st.elite ? 'WELTKLASSE' : 'WALKOUT';
+const darkText = (st: RevealStyle, first: boolean): string =>
+  !first ? 'Und da kommt noch einer …' : st.legend ? 'Eine Legende betritt den Rasen …' : st.elite ? 'Das Stadion hält den Atem an …' : 'Da kommt was Großes …';
+const holdText = (st: RevealStyle, first: boolean): string => {
+  if (!first) return '💥 Und noch ein Volltreffer!';
+  if (st.legend && st.elite) return '👑 Legendäre Weltklasse!';
+  if (st.legend) return '👑 Legende gezogen!';
+  if (st.elite) return '💎 Weltklasse!';
+  if (st.tier === 'walkout') return '⭐ Walkout!';
+  if (st.tier === 'strong') return '🔥 Starker Fund!';
+  return 'Beste Karte des Packs';
 };
 
-const buildSteps = (order: readonly Player[], featured: number): Step[] => {
-  const steps: Step[] = [{ kind: 'burst', index: 0, dur: 900 }];
-  order.forEach((_, i) => {
-    if (i < featured) {
-      const first = i === 0;
-      steps.push({ kind: 'suspense', index: i, dur: first ? 2400 : 1400 });
-      steps.push({ kind: 'flag', index: i, dur: first ? 1100 : 900 });
-      steps.push({ kind: 'pos', index: i, dur: first ? 1100 : 900 });
-      steps.push({ kind: 'name', index: i, dur: first ? 1200 : 1000 });
-      steps.push({ kind: 'card', index: i, dur: 0, hold: true });
-    } else {
-      steps.push({ kind: 'flag', index: i, dur: 320 });
-      steps.push({ kind: 'pos', index: i, dur: 320 });
-      steps.push({ kind: 'card', index: i, dur: 650 });
-    }
-  });
-  return steps;
-};
-
-export const PackOpening = ({ packType, cards, onOpen, onDone, nextLabel, onNext, title, subtitle, revealed = false }: Props): ReactElement => {
+export const PackOpening = ({ packType, cards, onOpen, onDone, nextLabel, onNext, onTeam, title, subtitle, revealed = false }: Props): ReactElement => {
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
   const timer = useRef<number | null>(null);
   const runId = useRef(0);
   const startedAt = useRef(0);
-  const stepsRef = useRef<Step[]>([]);
+  const holdAt = useRef(0);
+  const stepsRef = useRef<RevealStep[]>([]);
   const stepIdx = useRef(0);
   const orderRef = useRef<{ order: readonly Player[]; featured: number }>({ order: [], featured: 0 });
+  const reducedRef = useRef(false);
   const cfg = PACKS[packType];
 
   const clearTimer = (): void => { if (timer.current !== null) { window.clearTimeout(timer.current); timer.current = null; } };
+  const stopEffects = (): void => { clearTimer(); stopAllSounds(); buzz(0); };
 
-  const finish = (): void => { clearTimer(); setPhase({ kind: 'summary' }); onDone?.(); };
+  const finish = (): void => { stopEffects(); setPhase({ kind: 'summary' }); onDone?.(); };
 
-  const play = (step: Step, index: number): void => {
-    const c = orderRef.current.order[step.index]!;
+  const play = (step: RevealStep, index: number): void => {
+    const { order, featured } = orderRef.current;
+    const c = order[step.index]!;
+    const st = styleFor(c);
     stepIdx.current = index;
+    if (step.hold) holdAt.current = Date.now();
     setPhase({ kind: step.kind, index: step.index, hold: !!step.hold });
     switch (step.kind) {
       case 'burst': sfx.burst(); break;
-      case 'suspense': sfx.suspense(); buzz([30, 200, 30, 200, 30]); break;
+      case 'dark': sfx.suspense(step.dur); buzz([30, 220, 30, 220, 30]); break;
       case 'flag': case 'pos': sfx.flip(); break;
       case 'name': sfx.flip(); buzz(40); break;
       case 'card':
-        if (step.hold) { if (c.ovr >= WALKOUT_MIN) sfx.walkout(); else sfx.reveal(c.ovr); buzz([60, 40, 60, 40, 160]); }
-        else { sfx.reveal(c.ovr); buzz(25); }
+        if (step.index >= featured) { sfx.reveal(c.ovr); buzz(25); break; }
+        if (st.tier === 'walkout') {
+          if (st.legend) sfx.legend(); else sfx.walkout();
+          if (st.elite) sfx.elite();
+          buzz([60, 40, 60, 40, 160]);
+        } else if (st.tier === 'strong') { sfx.strong(); buzz([40, 30, 80]); }
+        else { sfx.reveal(c.ovr); buzz(30); }
         break;
     }
   };
 
-  /** Führt Schritt i aus und plant den nächsten, außer der Schritt hält an. */
+  /** Führt Schritt i aus und plant den nächsten, außer der Schritt ist ein Haltebild. */
   const runFrom = (i: number, id: number): void => {
     clearTimer();
     if (runId.current !== id) return;
@@ -102,34 +114,45 @@ export const PackOpening = ({ packType, cards, onOpen, onDone, nextLabel, onNext
   };
 
   useEffect(() => {
-    clearTimer();
+    stopEffects();
     if (!cards) { setPhase({ kind: 'idle' }); return; }
     const id = ++runId.current;
     startedAt.current = Date.now();
+    reducedRef.current = prefersReducedMotion();
     orderRef.current = revealOrder(cards);
-    stepsRef.current = buildSteps(orderRef.current.order, orderRef.current.featured);
+    stepsRef.current = buildSteps(orderRef.current.order, orderRef.current.featured, reducedRef.current);
     if (revealed) { setPhase({ kind: 'summary' }); return; }
     runFrom(0, id);
-    return clearTimer;
+    // Aufräumen beim Verlassen: Timer, Töne und Vibration stoppen. Ohne Timer läuft kein Schritt mehr nach.
+    return stopEffects;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cards]);
 
+  const active = cards !== null && phase.kind !== 'summary' && phase.kind !== 'idle';
+
   const skip = (): void => {
-    if (!cards || phase.kind === 'summary' || phase.kind === 'idle') return;
+    if (!active) return;
     runId.current++;
     finish();
   };
 
-  /** Weiter nach einer Haltestelle – oder Vorspulen bis zur nächsten großen Karte. */
+  /** Weiter nach einem Haltebild – oder Vorspulen bis zur nächsten besonderen Karte. */
   const advance = (): void => {
-    if (!cards || phase.kind === 'summary' || phase.kind === 'idle') return;
-    if (Date.now() - startedAt.current < 700) return; // Doppeltipp-Schutz direkt nach dem Öffnen
+    if (!active || !('hold' in phase)) return;
+    const now = Date.now();
+    if (now - startedAt.current < START_GUARD_MS) return;
     const id = runId.current;
     const steps = stepsRef.current;
-    if ('hold' in phase && phase.hold) { sfx.tap(); runFrom(stepIdx.current + 1, id); return; }
-    // Vorspulen: zur nächsten Haltestelle springen, sonst zur Zusammenfassung
+    if (phase.hold) {
+      // Dieselbe Eingabe darf nicht das Vorspulen beenden und zugleich das Haltebild überspringen.
+      if (now - holdAt.current < HOLD_GUARD_MS) return;
+      sfx.tap();
+      runFrom(stepIdx.current + 1, id);
+      return;
+    }
     let j = stepIdx.current + 1;
     while (j < steps.length && !steps[j]!.hold) j++;
+    stopAllSounds();
     if (j < steps.length) runFrom(j, id); else skip();
   };
 
@@ -159,6 +182,7 @@ export const PackOpening = ({ packType, cards, onOpen, onDone, nextLabel, onNext
           {[...cards].sort((a, b) => b.ovr - a.ovr).map((c) => <Card key={c.id} player={c} size="sm" highlight={c.id === best.id} />)}
         </div>
         {onNext && <button type="button" className="btn btn-primary btn-big" onClick={() => { sfx.tap(); onNext(); }}>{nextLabel ?? 'Nächstes Pack'}</button>}
+        {onTeam && <button type="button" className="btn btn-secondary btn-big" onClick={() => { sfx.tap(); onTeam(); }}>⚽ Zum Team</button>}
       </div>
     );
   }
@@ -167,58 +191,101 @@ export const PackOpening = ({ packType, cards, onOpen, onDone, nextLabel, onNext
   const idx = phase.index;
   const current = order[idx]!;
   const f = FLAGS[current.nation] ?? { flag: '🏳️', name: current.nation };
-  const isFeatured = idx < featured;
-  const isWalkout = current.ovr >= WALKOUT_MIN;
-  const big = isFeatured && phase.kind !== 'burst';
+  const isFeatured = idx < featured && phase.kind !== 'burst';
+  const st: RevealStyle = isFeatured ? styleFor(current) : { tier: 'normal', legend: false, elite: false };
+  const first = idx === 0;
   const holding = phase.kind === 'card' && phase.hold;
+  const special = st.tier !== 'normal';
+  const stageClass = [
+    'stage', `tier-${st.tier}`, `ph-${phase.kind}`,
+    st.legend ? 'is-legend' : '', st.elite ? 'is-elite' : '', holding ? 'is-hold' : '', reducedRef.current ? 'is-reduced' : '',
+  ].filter(Boolean).join(' ');
+  const continueLabel = idx + 1 < featured ? 'Weiter – da ist noch einer' : order.length > featured && !reducedRef.current ? 'Restliche Karten zeigen' : 'Zur Packübersicht';
 
   return (
-    <div className={`stage${big ? ' stage-walkout' : ''}${phase.kind === 'suspense' ? ' stage-suspense' : ''}`} onClick={advance} role="presentation">
-      <div className="stage-lights" />
-      <div className="particles">{Array.from({ length: 24 }, (_, i) => <span key={i} style={{ ['--i' as string]: i }} />)}</div>
-      {phase.kind !== 'card' && <div className="stage-counter">Karte {idx + 1} / {order.length}</div>}
-      {phase.kind === 'burst' && <div className="burst-core" />}
-      {phase.kind === 'suspense' && (
-        <div className="suspense">
-          <div className="suspense-text">{idx === 0 ? 'Da kommt was …' : 'Und noch einer …'}</div>
-          <div className="suspense-dots"><span /><span /><span /></div>
-        </div>
-      )}
-      {phase.kind === 'flag' && (
-        <div className="reveal-step">
-          <div className={`reveal-flag${big ? ' huge' : ''}`}>{f.flag}</div>
-          <div className="reveal-label">{f.name}</div>
-        </div>
-      )}
-      {phase.kind === 'pos' && (
-        <div className="reveal-step">
-          <div className="reveal-flag small">{f.flag}</div>
-          <div className="reveal-pos">{current.pos}</div>
-          <div className="reveal-label">{POS_NAMES[current.pos] ?? current.pos}</div>
-        </div>
-      )}
-      {phase.kind === 'name' && (
-        <div className="reveal-step">
-          <div className="reveal-flag small">{f.flag}</div>
-          <div className="reveal-name">{current.name}</div>
-          <div className="reveal-label">{isWalkout ? 'WALKOUT' : 'TOP-KARTE'}</div>
-        </div>
-      )}
-      {phase.kind === 'card' && (
-        <div className={`reveal-card${isFeatured ? ' reveal-card-walkout' : ''}`}>
-          <Card player={current} size="lg" />
-        </div>
-      )}
-      {holding && (
-        <div className="hold-bar">
-          <div className="hold-text">{idx === 0 ? '🔥 Beste Karte des Packs!' : '💥 Zweiter Volltreffer!'}</div>
-          <button type="button" className="btn btn-primary btn-big" onClick={(e) => { e.stopPropagation(); advance(); }}>
-            {idx + 1 < featured ? 'Weiter – da ist noch einer' : 'Restliche Karten zeigen'}
-          </button>
-        </div>
-      )}
-      {!holding && <div className="stage-hint">Tippen = vorspulen</div>}
-      <button type="button" className="btn btn-ghost skip-btn" onClick={(e) => { e.stopPropagation(); skip(); }}>Überspringen ⏭</button>
+    <div className={stageClass} onClick={advance} role="presentation">
+      <div className="st-bg" aria-hidden="true">
+        <div className="st-lamps" />
+        <div className="st-flood st-flood-l" />
+        <div className="st-flood st-flood-r" />
+        <div className="st-crowd" />
+        {phase.kind === 'dark' && (
+          <div className="st-tunnel">{TUNNEL.map((i) => <span key={i} style={cssVar('--i', i)} />)}</div>
+        )}
+        {special && phase.kind !== 'dark' && <div className="st-rays" />}
+        {special && (
+          <div className="st-embers">
+            {EMBERS.map((e, i) => <span key={i} style={{ left: `${e.left}%`, width: e.size, height: e.size, animationDuration: `${e.dur}s`, animationDelay: `-${e.delay}s` }} />)}
+          </div>
+        )}
+        {st.legend && (
+          <div className="st-stars">
+            {STARS.map((s, i) => <span key={i} style={{ left: `${s.left}%`, top: `${s.top}%`, fontSize: s.size, animationDelay: `${s.delay}s` }}>✦</span>)}
+          </div>
+        )}
+        {phase.kind === 'card' && special && <div className="st-flash" key={`flash-${idx}`} />}
+        {phase.kind === 'card' && st.elite && (
+          <>
+            <div className="st-ring" key={`ring-${idx}`} />
+            <div className="st-confetti" key={`confetti-${idx}`}>
+              {CONFETTI.map((c, i) => <span key={i} className={`cf-${c.tone}`} style={{ left: `${c.left}%`, animationDuration: `${c.dur}s`, animationDelay: `${c.delay}s` }} />)}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="st-top">
+        <span className="st-counter">{phase.kind === 'burst' ? '' : `Karte ${idx + 1} / ${order.length}`}</span>
+        <button type="button" className="st-skip" onClick={(e) => { e.stopPropagation(); skip(); }}>Überspringen ⏭</button>
+      </div>
+
+      <div className="st-center">
+        {phase.kind === 'burst' && <div className="burst-core" />}
+        {phase.kind === 'dark' && (
+          <div className="rv-step rv-dark" key={`dark-${idx}`}>
+            <div className="rv-dark-text">{darkText(st, first)}</div>
+            <div className="rv-dots"><span /><span /><span /></div>
+          </div>
+        )}
+        {phase.kind === 'flag' && (
+          <div className="rv-step" key={`flag-${idx}`}>
+            <div className={`rv-flag${special ? ' big' : ''}`}>{f.flag}</div>
+            <div className="rv-label">{f.name}</div>
+          </div>
+        )}
+        {phase.kind === 'pos' && (
+          <div className="rv-step" key={`pos-${idx}`}>
+            <div className="rv-flag small">{f.flag}</div>
+            <div className="rv-pos">{current.pos}</div>
+            <div className="rv-label">{POS_NAMES[current.pos] ?? current.pos}</div>
+          </div>
+        )}
+        {phase.kind === 'name' && (
+          <div className="rv-step" key={`name-${idx}`}>
+            <div className="rv-flag small">{f.flag} <span className="rv-pos-mini">{current.pos}</span></div>
+            <div className="rv-name">{current.name}</div>
+            <div className="rv-tag">{nameTag(st)}</div>
+          </div>
+        )}
+        {phase.kind === 'card' && (
+          <div className={`rv-card rv-card-${st.tier}`} key={`card-${idx}`}>
+            <div className="rv-halo" />
+            <Card player={current} size="lg" />
+          </div>
+        )}
+      </div>
+
+      <div className="st-bottom">
+        {holding ? (
+          <>
+            <div className="hold-text">{holdText(st, first)}</div>
+            <button type="button" className="btn btn-primary btn-big" onClick={(e) => { e.stopPropagation(); advance(); }}>{continueLabel}</button>
+          </>
+        ) : (
+          <div className="st-hint">Tippen = vorspulen</div>
+        )}
+      </div>
+      <div className="sr-only" aria-live="polite">{phase.kind === 'card' ? `${current.name}, ${current.pos}, Bewertung ${current.ovr}` : ''}</div>
     </div>
   );
 };

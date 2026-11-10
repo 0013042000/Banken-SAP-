@@ -22,6 +22,19 @@ export const Silhouette = (): ReactElement => (
   </svg>
 );
 
+/** Kompaktes Porträt (oder Initialen) für Spielfeld, Listen und Dialoge. */
+export const Portrait = ({ player, className = '' }: { readonly player: Player; readonly className?: string }): ReactElement => {
+  const [failed, setFailed] = useState(false);
+  const show = HAS_PORTRAIT.has(player.id) && !failed;
+  return (
+    <span className={`portrait portrait-${player.cat} ${className}`} aria-hidden="true">
+      {show
+        ? <img src={portraitUrl(player.id)} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setFailed(true)} />
+        : <span className="portrait-initials">{initials(player.name)}</span>}
+    </span>
+  );
+};
+
 export const Card = ({ player, size = 'md', highlight = false, count }: Props): ReactElement => {
   const f = FLAGS[player.nation] ?? { flag: '🏳️', name: player.nation };
   const stats = statsFor(player);

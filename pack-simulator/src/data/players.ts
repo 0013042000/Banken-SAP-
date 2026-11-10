@@ -223,3 +223,20 @@ export const statsFor = (pl: Player): readonly StatLine[] => {
 
 export const initials = (name: string): string =>
   name.split(/\s+/).filter(Boolean).map((w) => w[0]!.toUpperCase()).slice(0, 2).join('');
+
+/** Kurzname für kompakte Darstellungen (z. B. auf dem Spielfeld). */
+const SHORT_OVERRIDES: Readonly<Record<string, string>> = {
+  vinicius: 'Vinícius', neymar: 'Neymar', son: 'Son', r9: 'Ronaldo R9', cr7: 'C. Ronaldo', rcarlos: 'R. Carlos',
+  xavi: 'Xavi', alisson: 'Alisson', taa: 'Trent', gerdmuller: 'G. Müller', muller: 'T. Müller', bruno: 'B. Fernandes',
+  lautaro: 'Lautaro', simons: 'X. Simons', yashin: 'Jaschin', shevchenko: 'Schewa', schweini: 'Schweini',
+};
+const PARTICLES = new Set(['van', 'de', 'ter', 'del', 'di', 'De', 'Di', 'Del']);
+export const shortName = (pl: Player): string => {
+  const override = SHORT_OVERRIDES[pl.id];
+  if (override) return override;
+  const parts = pl.name.split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return pl.name;
+  const last = parts[parts.length - 1]!;
+  const before = parts[parts.length - 2]!;
+  return parts.length > 2 && PARTICLES.has(before) ? `${before} ${last}` : last;
+};

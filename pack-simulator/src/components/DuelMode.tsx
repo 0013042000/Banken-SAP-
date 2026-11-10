@@ -20,7 +20,7 @@ interface DuelState {
   readonly stage: 'open' | 'compare' | 'finished';
 }
 
-interface Props { readonly dreamLuck: boolean }
+interface Props { readonly dreamLuck: boolean; readonly onTeam: () => void }
 
 const fresh = (packType: PackType): DuelState => ({
   packType, round: 0, turn: 0, stage: 'open',
@@ -37,7 +37,7 @@ const saveDuel = (d: DuelState | null): void => {
   try { if (d) localStorage.setItem(DUEL_KEY, JSON.stringify(d)); else localStorage.removeItem(DUEL_KEY); } catch { /* ignore */ }
 };
 
-export const DuelMode = ({ dreamLuck }: Props): ReactElement => {
+export const DuelMode = ({ dreamLuck, onTeam }: Props): ReactElement => {
   const [duel, setDuel] = useState<DuelState | null>(() => loadDuel());
   // Nach einem Neuladen mitten im Zug: bereits gezogenes Pack direkt wieder anzeigen
   const [cards, setCards] = useState<readonly Player[] | null>(() => {
@@ -45,7 +45,7 @@ export const DuelMode = ({ dreamLuck }: Props): ReactElement => {
     return d && d.stage === 'open' ? d.rounds[d.round]?.packs[d.turn] ?? null : null;
   });
   const busy = useRef(cards !== null);
-  const restored = useRef(cards !== null);
+  const [restored, setRestored] = useState(cards !== null);
 
   useEffect(() => { saveDuel(duel); }, [duel]);
 
@@ -73,7 +73,7 @@ export const DuelMode = ({ dreamLuck }: Props): ReactElement => {
   const open = (): void => {
     if (busy.current || cards) return;
     busy.current = true;
-    restored.current = false;
+    setRestored(false);
     const drawn = drawPack(duel.packType, dreamLuck);
     setDuel((d) => {
       if (!d) return d;
@@ -136,6 +136,7 @@ export const DuelMode = ({ dreamLuck }: Props): ReactElement => {
         </div>
         <button type="button" className="btn btn-primary btn-big" onClick={() => { sfx.tap(); busy.current = false; setCards(null); setDuel(fresh(duel.packType)); }}>Revanche 🔁</button>
         <button type="button" className="btn btn-ghost" onClick={() => { sfx.tap(); setDuel(null); }}>Anderes Pack wählen</button>
+        <button type="button" className="btn btn-secondary" onClick={onTeam}>⚽ Mein Team ansehen</button>
       </section>
     );
   }
@@ -175,7 +176,7 @@ export const DuelMode = ({ dreamLuck }: Props): ReactElement => {
         onOpen={open}
         onNext={afterPack}
         nextLabel={duel.turn === 0 ? `Weiter: ${NAMES[1]} ist dran` : 'Ergebnisse vergleichen'}
-        revealed={restored.current}
+        revealed={restored}
       />
     </section>
   );
