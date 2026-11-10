@@ -176,7 +176,7 @@ export const PackOpening = ({ packType, cards, onOpen, onDone, nextLabel, onNext
     <div className={`stage${big ? ' stage-walkout' : ''}${phase.kind === 'suspense' ? ' stage-suspense' : ''}`} onClick={advance} role="presentation">
       <div className="stage-lights" />
       <div className="particles">{Array.from({ length: 24 }, (_, i) => <span key={i} style={{ ['--i' as string]: i }} />)}</div>
-      <div className="stage-counter">Karte {idx + 1} / {order.length}</div>
+      {phase.kind !== 'card' && <div className="stage-counter">Karte {idx + 1} / {order.length}</div>}
       {phase.kind === 'burst' && <div className="burst-core" />}
       {phase.kind === 'suspense' && (
         <div className="suspense">
