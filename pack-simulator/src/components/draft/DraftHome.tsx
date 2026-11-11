@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import type { ProfileId } from '../../football/contract';
 import { MAX_FINISHED_PER_PROFILE, PROFILE_IDS, PROFILE_LABEL, SQUAD_SIZE } from '../../game/draft/config';
 import { squadRatingOf, teamRatingOf, type DraftState } from '../../game/draft/engine';
-import { finishedLabel, finishedOf, type DraftBook } from '../../game/draft/store';
+import { finishedLabel, finishedOf, newestFirst, type DraftBook } from '../../game/draft/store';
 import { dateText, progressText, squadTitle } from './texts';
 
 interface Props {
@@ -53,7 +53,7 @@ export const DraftHome = ({ book, onStart, onResume, onDiscard, onView, onPlay, 
       <h3 className="dr-heading">Meine Drafts</h3>
       {!book.finished.length && <p className="dr-empty">Noch kein fertiger Draft. Starte deinen ersten – danach findest du ihn hier.</p>}
       {PROFILE_IDS.map((profile) => {
-        const list = finishedOf(book, profile).toSorted((a, b) => b.finishedAt - a.finishedAt);
+        const list = newestFirst(finishedOf(book, profile));
         return list.length ? (
           <div key={profile} className="dr-saved-group">
             <div className="dr-saved-owner">

@@ -70,9 +70,12 @@ export const finishedLabel = (book: DraftBook, draft: FinishedDraft): string => 
   return alike.length > 1 ? `${base} (${alike.findIndex((f) => f.id === draft.id) + 1})` : base;
 };
 
+/** Neueste zuerst. Kopie plus sort statt toSorted, damit auch ältere Handy-Browser mitkommen. */
+export const newestFirst = (drafts: readonly FinishedDraft[]): FinishedDraft[] => [...drafts].sort((a, b) => b.finishedAt - a.finishedAt);
+
 /** Alle fertigen Drafts als auswählbare Kader, neueste zuerst. */
 export const toSquadOptions = (book: DraftBook): SquadOption[] =>
-  book.finished.toSorted((a, b) => b.finishedAt - a.finishedAt).map((draft) => ({
+  newestFirst(book.finished).map((draft) => ({
     id: squadOptionId(draft.id),
     label: finishedLabel(book, draft),
     owner: draft.profile,
