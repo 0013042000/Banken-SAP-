@@ -56,6 +56,9 @@ export const moveTo = (from: Vec, target: Vec): Vec => {
   return distance < T.ARRIVE_STOP ? ZERO : scale(delta, Math.min(1, distance / T.ARRIVE_RADIUS) / distance);
 };
 
+/** Mit vollem Tempo auf das Ziel zu, ohne vorher abzubremsen (Anlaufen des Ballführenden). */
+const charge = (from: Vec, target: Vec): Vec => unit(sub(target, from));
+
 /** Ballposition nach t Sekunden freiem Rollen. */
 export const ballAfter = (ball: BallState, t: number): Vec =>
   add(ball.pos, scale(ball.vel, (1 - Math.exp(-T.DRAG * t)) / T.DRAG));
@@ -100,12 +103,18 @@ interface RoleInput {
   readonly ranked: readonly number[];
 }
 
-const pressRoles = ({ state, human, tuning, ranked }: RoleInput): Roles => {
+/**
+ * Wer läuft den Ballführenden an? Bei KI-Mannschaften der Nächste. Neben einem Menschen sichert
+ * der nächste Mitspieler nur ab – außer es wird gefährlich (Ball nah am eigenen Tor oder der
+ * Mensch ist weit weg), dann greift er selbst an.
+ */
+const pressRoles = ({ state, team, human, tuning, ranked }: RoleInput): Roles => {
   const [first, second] = ranked;
   if (human === NONE) return { chaser: first, cover: tuning.doublePress ? second : NONE };
-  if (human === first) return { chaser: NONE, cover: second };
+  const helper = human === first ? second : first;
+  const danger = toWorld(team, state.ball.pos).x < T.DANGER_ZONE;
   const humanFar = dist(state.players[human].pos, state.ball.pos) > T.HUMAN_FAR;
-  return humanFar ? { chaser: first, cover: NONE } : { chaser: NONE, cover: first };
+  return danger || humanFar ? { chaser: helper, cover: NONE } : { chaser: NONE, cover: helper };
 };
 
 const looseRoles = ({ state, team, ranked }: RoleInput): Roles => {
@@ -114,8 +123,10 @@ const looseRoles = ({ state, team, ranked }: RoleInput): Roles => {
   return { chaser: called ? target : ranked[0], cover: NONE };
 };
 
+const NO_ROLES: Roles = Object.freeze({ chaser: NONE, cover: NONE });
+
 const ROLE_PICKERS: Readonly<Record<Possession, (input: RoleInput) => Roles>> = {
-  own: () => ({ chaser: NONE, cover: NONE }),
+  own: () => NO_ROLES,
   opp: pressRoles,
   loose: looseRoles,
 };
@@ -147,7 +158,9 @@ const viewFor = (state: MatchState, team: TeamId): TeamView => {
     .map((i) => ({ i, eta: reachTime(state, i) }))
     .sort((a, b) => a.eta - b.eta)
     .map((entry) => entry.i);
-  const roles = ROLE_PICKERS[possession]({ state, team, human, tuning, ranked });
+  // Hält der gegnerische Torwart den Ball, läuft ihn niemand an – alle ordnen sich.
+  const settled = possession === Possession.Opp && state.ball.held;
+  const roles = settled ? NO_ROLES : ROLE_PICKERS[possession]({ state, team, human, tuning, ranked });
   const marks = possession === Possession.Own ? NO_MARKS : assignMarks(state, team, [roles.chaser, roles.cover, human]);
   return { team, tuning, human, possession, ...roles, marks };
 };
@@ -177,10 +190,19 @@ const canClaim = (state: MatchState, keeper: number, team: TeamId): boolean => {
   return fieldPlayers(otherTeam(team)).every((o) => dist(players[o].pos, ball.pos) > mine + T.KEEPER_CLAIM_MARGIN);
 };
 
+/** Eins gegen eins: Dringt ein Gegner mit Ball in den Strafraum ein, stürzt der Torwart heraus. */
+const shouldRush = (state: MatchState, keeper: number, team: TeamId): boolean => {
+  const { ball, players } = state;
+  const hostile = ball.owner !== NONE && teamOf(ball.owner) !== team;
+  return hostile && inOwnBox(team, ball.pos) && dist(players[keeper].pos, ball.pos) < T.KEEPER_RUSH_RANGE;
+};
+
 /** Stellt sich auf die Linie zwischen Ball und Tormitte, knapp vor dem Tor. */
 const guardSpot = (team: TeamId, ballPos: Vec): Vec => {
   const goal = ownGoal(team);
-  const out = add(goal, scale(unit(sub(ballPos, goal), vec(attackSign(team), 0)), T.KEEPER_OUT));
+  const closeness = clamp((T.KEEPER_FAR_RANGE - dist(ballPos, goal)) / (T.KEEPER_FAR_RANGE - T.KEEPER_NEAR_RANGE), 0, 1);
+  const depth = T.KEEPER_OUT + (T.KEEPER_OUT_NEAR - T.KEEPER_OUT) * closeness;
+  const out = add(goal, scale(unit(sub(ballPos, goal), vec(attackSign(team), 0)), depth));
   const local = toWorld(team, out);
   return toWorld(team, vec(
     clamp(local.x, T.KEEPER_MIN_X, T.KEEPER_MAX_X),
@@ -208,6 +230,7 @@ const keeperIntent = (state: MatchState, keeper: number, view: TeamView): Intent
   }
   const incoming = shotIntercept(state, keeper, team);
   if (incoming) return stay(moveTo(p.pos, incoming));
+  if (shouldRush(state, keeper, team)) return stay(charge(p.pos, state.ball.pos));
   const target = canClaim(state, keeper, team) ? state.ball.pos : guardSpot(team, state.ball.pos);
   return stay(moveTo(p.pos, target));
 };
@@ -322,15 +345,17 @@ const chaseIntent = (state: MatchState, player: number, view: TeamView): Intent 
   const p = state.players[player];
   const { ball } = state;
   if (ball.owner === NONE) return stay(moveTo(p.pos, interceptPoint(state, player).point));
-  const tooDeep = toWorld(view.team, ball.pos).x > view.tuning.pressLine;
-  const target = tooDeep ? containSpot(state, view.team) : add(ball.pos, scale(state.players[ball.owner].vel, T.PRESS_LEAD));
-  return stay(moveTo(p.pos, target));
+  if (toWorld(view.team, ball.pos).x > view.tuning.pressLine) return stay(moveTo(p.pos, containSpot(state, view.team)));
+  return stay(charge(p.pos, add(ball.pos, scale(state.players[ball.owner].vel, T.PRESS_LEAD))));
 };
 
 const defendIntent = (state: MatchState, player: number, view: TeamView): Intent => {
   const p = state.players[player];
   const { team } = view;
-  if (player === view.cover) return stay(moveTo(p.pos, containSpot(state, team)));
+  if (player === view.cover) {
+    const danger = toWorld(team, state.ball.pos).x < T.DANGER_ZONE;
+    return stay(danger ? charge(p.pos, state.ball.pos) : moveTo(p.pos, containSpot(state, team)));
+  }
   const home = homeSpot(team, slotOf(player), state.ball.pos, T.LEAN_DEFEND);
   const mark = view.marks[slotOf(player)];
   if (mark === NONE) return stay(moveTo(p.pos, home));

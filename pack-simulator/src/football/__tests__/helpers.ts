@@ -57,14 +57,19 @@ export const runUntil = (
 /**
  * Laufendes Spiel mit freiem Ball und ohne eingreifende Spieler:
  * alle stehen benommen an der Seitenlinie. So lassen sich Regeln isoliert prüfen.
+ * Spieler aus `active` bleiben an ihrem Anstoßplatz und spielen normal mit.
  */
-export const openPlay = (ballPos: Vec, ballVel: Vec, lastTeam: number, config: MatchConfig = makeConfig()): MatchState => {
+export const openPlay = (
+  ballPos: Vec, ballVel: Vec, lastTeam: number, config: MatchConfig = makeConfig(), active: readonly number[] = [],
+): MatchState => {
   const base = createMatch(config);
   return {
     ...base,
     phase: Phase.Play,
     phaseTime: 0,
-    players: base.players.map((p, i) => ({ ...p, pos: vec(PARK_X + (i - TEAM_SIZE) * PARK_STEP, PARK_Y), stun: FROZEN })),
+    players: base.players.map((p, i) => (active.includes(i)
+      ? p
+      : { ...p, pos: vec(PARK_X + (i - TEAM_SIZE) * PARK_STEP, PARK_Y), stun: FROZEN })),
     ball: { ...looseBall(ballPos), vel: ballVel, lastTeam, lastPlayer: lastTeam * TEAM_SIZE + 1 },
   };
 };

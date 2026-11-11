@@ -182,7 +182,9 @@ const keeperTouch = (state: MatchState, keeper: number, tools: StepTools): Match
   if (ball.judged) return state;
   const ability = skill(specOf(state, keeper).keeping);
   const power = clamp((speed - T.POWER_FLOOR) / T.POWER_RANGE, 0, 1);
-  const saveChance = clamp(T.SAVE_BASE + T.SAVE_SKILL * ability - T.SAVE_POWER * power, T.SAVE_MIN, T.SAVE_MAX);
+  const setup = state.config.teams[team];
+  const level = setup.control === 'ai' ? T.AI_LEVELS[setup.difficulty].keeper : 0;
+  const saveChance = clamp(T.SAVE_BASE + T.SAVE_SKILL * ability - T.SAVE_POWER * power + level, T.SAVE_MIN, T.SAVE_MAX);
   if (tools.rng.next() >= saveChance) return withBall(state, { judged: true, beaten: true });
   tools.emit({ type: 'save', player: keeper });
   const saved = { ...state, stats: { ...state.stats, saves: bumpPair(state.stats.saves, team) } };

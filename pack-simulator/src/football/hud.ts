@@ -5,6 +5,8 @@ import {
   type Frame, type RestartKind, type SimEvent, type TeamId,
 } from './sim/index.ts';
 
+export type BallSide = 'mine' | 'theirs' | 'loose';
+
 export interface Hud {
   readonly mine: number;
   readonly theirs: number;
@@ -13,6 +15,9 @@ export interface Hud {
   readonly banner: string | null;
   readonly detail: string | null;
   readonly swapLabel: string;
+  /** Wer gerade den Ball hat (für Gestaltung und Tests). */
+  readonly ball: BallSide;
+  readonly phase: Phase;
   readonly ended: boolean;
 }
 
@@ -62,15 +67,23 @@ const swapLabel = (frame: Frame, myTeam: TeamId): string => {
   return isNearestToBall(positions, myTeam, frame.ball.pos, frame.controlled[myTeam]) ? FETCH_LABEL : SWAP_LABEL;
 };
 
+const ballSide = (frame: Frame, myTeam: TeamId): BallSide => {
+  const { owner } = frame.ball;
+  if (owner === NONE) return 'loose';
+  return teamOf(owner) === myTeam ? 'mine' : 'theirs';
+};
+
 export const hudOf = (frame: Frame, meta: MatchMeta, lastGoal: string | null): Hud => ({
   mine: frame.score[meta.myTeam],
   theirs: frame.score[otherSide(meta.myTeam)],
   clock: formatClock(frame.timeLeft),
   ...BANNERS[frame.phase]({ frame, meta, goalText: lastGoal }),
   swapLabel: swapLabel(frame, meta.myTeam),
+  ball: ballSide(frame, meta.myTeam),
+  phase: frame.phase,
   ended: frame.phase === Phase.Ended,
 });
 
 export const sameHud = (a: Hud, b: Hud): boolean =>
   a.mine === b.mine && a.theirs === b.theirs && a.clock === b.clock && a.banner === b.banner
-  && a.detail === b.detail && a.swapLabel === b.swapLabel && a.ended === b.ended;
+  && a.detail === b.detail && a.swapLabel === b.swapLabel && a.ball === b.ball && a.phase === b.phase && a.ended === b.ended;

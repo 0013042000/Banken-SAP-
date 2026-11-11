@@ -89,7 +89,7 @@
 .fb-banner strong { font-size: clamp(2rem, 9vw, 3.6rem); font-weight: 900; line-height: 1; color: var(--gold); }
 .fb-banner span { font-size: 1rem; font-weight: 700; overflow-wrap: anywhere; }
 .fb-notice-box { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(88%, 420px); padding: 14px 16px; border-radius: 14px; background: rgba(7,11,22,0.92); border: 1px solid rgba(255,180,84,0.6); color: #ffd9a8; text-align: center; line-height: 1.4; z-index: 3; }
-.fb-rotate { position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 4px 4px 12px; border-radius: 12px; background: rgba(7,11,22,0.88); border: 1px solid var(--line); font-size: 0.85rem; font-weight: 700; z-index: 3; }
+.fb-rotate { position: absolute; left: 8px; right: 8px; top: 8px; pointer-events: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 4px 4px 12px; border-radius: 12px; background: rgba(7,11,22,0.88); border: 1px solid var(--line); font-size: 0.85rem; font-weight: 700; z-index: 3; }
 .fb-rotate button { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); }
 
 /* Steuerung: im Querformat halbtransparent über dem Feld */

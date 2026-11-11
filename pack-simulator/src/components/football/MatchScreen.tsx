@@ -21,9 +21,8 @@ interface Props {
 }
 
 interface LockedStyles {
-  readonly bodyOverflow: string;
-  readonly bodyOverscroll: string;
-  readonly rootOverflow: string;
+  readonly overflow: string;
+  readonly overscroll: string;
 }
 
 const ENDED_DELAY_MS = 1600;
@@ -31,23 +30,21 @@ const PORTRAIT_QUERY = '(orientation: portrait)';
 
 const flipInput = (input: TeamInput): TeamInput => ({ ...input, moveX: -input.moveX, moveY: -input.moveY });
 
-/** Sperrt Scrollen und Gummiband-Effekt der Seite, solange das Spiel läuft, und stellt danach alles wieder her. */
+/**
+ * Sperrt Scrollen und Gummiband-Effekt der Seite, solange das Spiel läuft, und stellt danach alles wieder her.
+ * Gesperrt wird bewusst am Wurzelelement und nicht am body: Der Pause-Dialog (Modal) merkt sich body.style.overflow
+ * selbst und würde beim gemeinsamen Schließen sonst einen veralteten Wert zurückschreiben.
+ */
 const lockPageScroll = (): (() => void) => {
-  const { body, documentElement } = document;
-  const before: LockedStyles = {
-    bodyOverflow: body.style.overflow,
-    bodyOverscroll: body.style.overscrollBehavior,
-    rootOverflow: documentElement.style.overflow,
-  };
-  body.style.setProperty('overflow', 'hidden');
-  body.style.setProperty('overscroll-behavior', 'none');
-  documentElement.style.setProperty('overflow', 'hidden');
+  const root = document.documentElement;
+  const before: LockedStyles = { overflow: root.style.overflow, overscroll: root.style.overscrollBehavior };
+  root.style.setProperty('overflow', 'hidden');
+  root.style.setProperty('overscroll-behavior', 'none');
   const blockZoom = (event: Event): void => event.preventDefault();
   document.addEventListener('gesturestart', blockZoom);
   return (): void => {
-    body.style.setProperty('overflow', before.bodyOverflow);
-    body.style.setProperty('overscroll-behavior', before.bodyOverscroll);
-    documentElement.style.setProperty('overflow', before.rootOverflow);
+    root.style.setProperty('overflow', before.overflow);
+    root.style.setProperty('overscroll-behavior', before.overscroll);
     document.removeEventListener('gesturestart', blockZoom);
   };
 };
@@ -192,9 +189,10 @@ export const MatchScreen = ({ driver, muted, online, notice, statusLabel, onEnde
   const theirs = meta.teams[meta.myTeam ? 0 : 1];
 
   return (
-    <div className="fb-match" ref={rootRef} onPointerDown={() => audioRef.current?.unlock()}>
+    <div className="fb-match" ref={rootRef} data-ball={hud?.ball} data-phase={hud?.phase} onPointerDown={() => audioRef.current?.unlock()}>
       <header className="fb-hud">
-        <button type="button" className="fb-hud-btn" onClick={() => setPaused(true)} aria-label="Pause">⏸</button>
+        {/* pointerup zusätzlich zu click: Direkt nach einer Wischbewegung unterdrücken Browser den Klick eines Tipps. */}
+        <button type="button" className="fb-hud-btn" onClick={() => setPaused(true)} onPointerUp={() => setPaused(true)} aria-label="Pause">⏸</button>
         <div className="fb-score" aria-live="polite">
           <span className="fb-team fb-team-mine">{mine.name}</span>
           <span className="fb-goals" data-testid="fb-score">{hud?.mine ?? 0} : {hud?.theirs ?? 0}</span>
@@ -218,15 +216,15 @@ export const MatchScreen = ({ driver, muted, online, notice, statusLabel, onEnde
           </div>
         )}
         {notice && <div className="fb-notice-box" role="status">{notice}</div>}
+      </div>
+
+      <div className="fb-controls">
         {rotateHint && (
           <div className="fb-rotate" role="note">
             <span>📱 Handy drehen für mehr Übersicht</span>
             <button type="button" onClick={() => setRotateHint(false)} aria-label="Hinweis schließen">✕</button>
           </div>
         )}
-      </div>
-
-      <div className="fb-controls">
         <div className="fb-stick-zone" ref={zoneRef}>
           <div className="fb-stick-base" ref={baseRef}><div className="fb-stick-knob" ref={knobRef} /></div>
           <span className="fb-stick-hint">Laufen</span>

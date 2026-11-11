@@ -77,8 +77,23 @@ const separate = (players: readonly PlayerState[]): readonly PlayerState[] =>
     return push === ZERO ? p : { ...p, pos: clampToPitch(add(p.pos, push)) };
   });
 
-const movePlayers = (state: MatchState, intents: readonly Intent[], dt: number): MatchState =>
-  ({ ...state, players: separate(state.players.map((_, i) => movePlayer(state, i, intents[i], dt))) });
+/** Hält ein Torwart den Ball, werden Gegner aus seiner Nähe geschoben (kein Bedrängen des Torwarts). */
+const clearKeeper = (state: MatchState, players: readonly PlayerState[], dt: number): readonly PlayerState[] => {
+  const { owner, held } = state.ball;
+  if (owner === NONE || !held) return players;
+  const keeper = players[owner].pos;
+  return players.map((p, i) => {
+    const crowding = teamOf(i) !== teamOf(owner) && dist(p.pos, keeper) < T.KEEPER_SPACE;
+    if (!crowding) return p;
+    const away = unit(sub(p.pos, keeper), vec(-attackSign(teamOf(i)), 0));
+    return { ...p, pos: clampToPitch(add(p.pos, scale(away, T.KEEPER_SHOVE * dt))) };
+  });
+};
+
+const movePlayers = (state: MatchState, intents: readonly Intent[], dt: number): MatchState => {
+  const moved = state.players.map((_, i) => movePlayer(state, i, intents[i], dt));
+  return { ...state, players: separate(clearKeeper(state, moved, dt)) };
+};
 
 const countPossession = (state: MatchState): MatchState => {
   const { owner } = state.ball;

@@ -5,7 +5,7 @@ import {
   type BallState, type MatchState, type StepTools, type TeamId,
 } from './model.ts';
 import * as T from './tuning.ts';
-import { add, clamp, dist, len, rotate, scale, sub, unit, vec, type Vec } from './vec.ts';
+import { add, clamp, dist, dot, len, rotate, scale, sub, unit, vec, type Vec } from './vec.ts';
 
 /** Was ein Spieler in diesem Schritt mit dem Ball tun will. */
 export type Action =
@@ -73,7 +73,8 @@ const pass: ActionHandler<'pass'> = (state, player, action, tools) => {
   const error = tools.rng.spread() * (T.PASS_ERR_MIN + T.PASS_ERR_SPAN * (1 - skill(spec.pass)));
   const speed = clamp(T.PASS_ARRIVE + T.DRAG * dist(from, target), T.PASS_MIN, T.PASS_MAX);
   const flat = { vel: scale(rotate(unit(sub(target, from), state.players[player].dir), error), speed), vz: 0 };
-  const flight = action.lob ? lobVelocity(from, target) : flat;
+  // Ein Abwurf startet über Kopfhöhe, damit ihn kein Gegner direkt vor dem Torwart abfangen kann.
+  const flight = action.lob ? { ...lobVelocity(from, target), z: T.LOB_START_Z } : flat;
   tools.emit({ type: 'pass', player });
   const kicked = kickBall(state, player, { ...flight, passTo: action.target });
   return { ...kicked, stats: { ...kicked.stats, passes: bumpPair(kicked.stats.passes, team) } };
@@ -116,8 +117,11 @@ export const attemptTackle = (state: MatchState, defender: number, bonus: number
   const mine = specOf(state, defender);
   const theirs = specOf(state, owner);
   const defending = isKeeper(defender) ? skill(mine.keeping) : skill(mine.defense);
+  const carrier = state.players[owner];
+  // +1: Der Verteidiger steht dem Ballführenden frontal im Weg, −1: er kommt von hinten.
+  const frontal = dot(carrier.dir, unit(sub(state.players[defender].pos, carrier.pos)));
   const chance = clamp(
-    T.TACKLE_BASE + T.TACKLE_SKILL * (defending - skill(theirs.dribble))
+    T.TACKLE_BASE + T.TACKLE_SKILL * (defending - skill(theirs.dribble)) + T.TACKLE_ANGLE * frontal
       + T.TACKLE_BODY * (skill(mine.physical) - skill(theirs.physical)) + bonus + levelTackleBonus(state, team),
     T.TACKLE_MIN, T.TACKLE_MAX,
   );
@@ -154,5 +158,8 @@ export const lunge = (state: MatchState, player: number, tools: StepTools): Matc
   const dash = scale(unit(toBall, p.dir), T.maxSpeed(specOf(state, player)) * T.LUNGE_DASH);
   const dashed = withPlayer(state, player, { vel: dash, cool: T.LUNGE_COOL });
   const canTackle = ball.owner !== NONE && teamOf(ball.owner) !== teamOf(player) && !ball.held && ball.protect <= 0;
-  return canTackle && len(toBall) < T.LUNGE_RANGE ? attemptTackle(dashed, player, T.LUNGE_BONUS, tools) : dashed;
+  if (!canTackle || len(toBall) >= T.LUNGE_RANGE) return dashed;
+  const fought = attemptTackle(dashed, player, T.LUNGE_BONUS, tools);
+  const missed = fought.ball.owner !== player;
+  return missed ? withPlayer(fought, player, { stun: T.LUNGE_FAIL_STUN }) : fought;
 };
