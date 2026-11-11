@@ -32,7 +32,7 @@ export const SettingsSheet = ({ settings, motion, onChange, onCredits, onClose }
         <div className="set-label">Ton</div>
         <div className="set-hint">Selbst erzeugte Töne, starten erst nach dem ersten Antippen.</div>
       </div>
-      <button type="button" role="switch" aria-checked={!settings.muted} className={`switch${settings.muted ? '' : ' on'}`}
+      <button type="button" role="switch" aria-label="Ton" aria-checked={!settings.muted} className={`switch${settings.muted ? '' : ' on'}`}
         onClick={() => onChange({ ...settings, muted: !settings.muted })}>
         {settings.muted ? 'Aus' : 'An'}
       </button>
