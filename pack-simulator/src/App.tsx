@@ -10,7 +10,9 @@ import { setMuted, sfx, unlockAudio } from './game/sound';
 import {
   lineupPlayers, OWNER_LABEL, ownersOf, pruneBook, sanitizeTeamBook, teamOf, teamRating, withTeam, type Team, type TeamBook, type TeamOwner,
 } from './game/team';
+import { listDraftSquads } from './game/draft/store';
 import { Collection } from './components/Collection';
+import { DraftHub } from './components/draft/DraftHub';
 import { Credits } from './components/Credits';
 import { PacksHub, type PacksView } from './components/PacksHub';
 import { SettingsSheet } from './components/SettingsSheet';
@@ -35,6 +37,9 @@ export default function App(): ReactElement {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [rawBook, setBook] = useState<TeamBook>(() => sanitizeTeamBook(loadTeamsRaw(), loadTeamRaw(), ownedSet(loadCollection())));
   const [showSettings, setShowSettings] = useState(false);
+  /** Fertige Drafts als Kader; wird neu gelesen, sobald der Draft-Bereich eine Änderung meldet. */
+  const [draftSquads, setDraftSquads] = useState<SquadOption[]>(() => listDraftSquads());
+  const [preselectSquad, setPreselectSquad] = useState<string | null>(null);
   const storageOk = useSyncExternalStore(subscribeStorageStatus, getStorageOk);
 
   const motion = useMotion(settings.animation);
@@ -56,6 +61,7 @@ export default function App(): ReactElement {
   const teamSquads = useMemo<SquadOption[]>(() => ownersOf(book)
     .map((o) => { const t = teamOf(book, o); return { id: `team:${o}`, label: t.name, owner: o, kind: 'team' as const, rating: teamRating(t).rating, players: lineupPlayers(t) }; })
     .filter((s) => s.players.length > 0), [book]);
+  const squads = useMemo(() => [...teamSquads, ...draftSquads], [teamSquads, draftSquads]);
 
   const collect = (cards: readonly Player[]): void => {
     setCollection((c) => { const n = { ...c }; for (const p of cards) n[p.id] = (n[p.id] ?? 0) + 1; return n; });
@@ -89,8 +95,11 @@ export default function App(): ReactElement {
         {tab === 'team' && (
           <TeamView team={team} owner={owner} owners={ownersOf(book)} onOwner={setOwner} collection={collection} onChange={setTeam} onGoPacks={() => go('packs')} />
         )}
-        {tab === 'draft' && <p className="empty">Draft wird eingebunden … ({teamSquads.length})</p>}
-        {tab === 'spielen' && <p className="empty">Spielen wird eingebunden …</p>}
+        {tab === 'draft' && (
+          <DraftHub reducedMotion={motion === 'reduced'} muted={settings.muted} onChanged={() => setDraftSquads(listDraftSquads())}
+            onPlaySquad={(id) => { setPreselectSquad(id); go('spielen'); }} />
+        )}
+        {tab === 'spielen' && <p className="empty">Spielen wird eingebunden … ({squads.length} Kader, Vorauswahl {preselectSquad ?? 'keine'})</p>}
         {tab === 'credits' && <Credits onClose={() => go('packs')} />}
         <footer className="disclaimer">
           Eigener Simulator · fiktive Bewertungen und Ziehchancen · keine Verbindung zu EA · Version {__BUILD_ID__}
