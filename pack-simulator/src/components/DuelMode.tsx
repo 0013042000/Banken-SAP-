@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import type { Player } from '../data/players';
+import type { Motion } from '../game/motion';
 import { bestOf, drawPack, PACK_ORDER, PACKS, type PackType } from '../game/packs';
 import { sfx } from '../game/sound';
 import { Card } from './Card';
@@ -20,7 +21,7 @@ interface DuelState {
   readonly stage: 'open' | 'compare' | 'finished';
 }
 
-interface Props { readonly dreamLuck: boolean; readonly onTeam: () => void }
+interface Props { readonly dreamLuck: boolean; readonly motion: Motion; readonly onTeam: () => void }
 
 const fresh = (packType: PackType): DuelState => ({
   packType, round: 0, turn: 0, stage: 'open',
@@ -37,7 +38,7 @@ const saveDuel = (d: DuelState | null): void => {
   try { if (d) localStorage.setItem(DUEL_KEY, JSON.stringify(d)); else localStorage.removeItem(DUEL_KEY); } catch { /* ignore */ }
 };
 
-export const DuelMode = ({ dreamLuck, onTeam }: Props): ReactElement => {
+export const DuelMode = ({ dreamLuck, motion, onTeam }: Props): ReactElement => {
   const [duel, setDuel] = useState<DuelState | null>(() => loadDuel());
   // Nach einem Neuladen mitten im Zug: bereits gezogenes Pack direkt wieder anzeigen
   const [cards, setCards] = useState<readonly Player[] | null>(() => {
@@ -173,6 +174,7 @@ export const DuelMode = ({ dreamLuck, onTeam }: Props): ReactElement => {
       <PackOpening
         packType={duel.packType}
         cards={cards}
+        motion={motion}
         onOpen={open}
         onNext={afterPack}
         nextLabel={duel.turn === 0 ? `Weiter: ${NAMES[1]} ist dran` : 'Ergebnisse vergleichen'}

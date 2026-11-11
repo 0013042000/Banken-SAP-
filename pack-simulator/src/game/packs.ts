@@ -129,3 +129,34 @@ export const demoWalkoutPack = (rnd: () => number = Math.random): readonly Playe
   while (chosen.length < 4) { const c = pick(rest, rnd); if (!used.has(c.id)) { used.add(c.id); chosen.push(c); } }
   return [...chosen.sort((a, b) => a.ovr - b.ovr), star];
 };
+
+/** Gezielte Vorschau der Enthüllungsstufen – verändert weder Sammlung noch Spielstände. */
+export type PreviewKind = 'normal' | 'star' | 'legend' | 'elite';
+
+export const PREVIEW_KINDS: readonly { readonly kind: PreviewKind; readonly label: string; readonly hint: string }[] = [
+  { kind: 'normal', label: 'Normaler Pull', hint: 'Beste Karte unter 86: kurze Kartenenthüllung' },
+  { kind: 'star', label: 'Star-Walkout', hint: 'Star ab 90 mit vollem Walkout, dazu ein kurzer Auftritt' },
+  { kind: 'legend', label: 'Legenden-Walkout', hint: 'Legende ab 90 auf goldener Bühne' },
+  { kind: 'elite', label: '95+-Walkout', hint: 'Spitzenkarte mit Feuerwerk und Sonderjubel' },
+];
+
+const SPECIAL_MIN = 95;
+
+export const previewPack = (kind: PreviewKind, rnd: () => number = Math.random): readonly Player[] => {
+  const headPool: Readonly<Record<PreviewKind, (p: Player) => boolean>> = {
+    normal: (p) => p.ovr >= 82 && p.ovr < FEATURE_MIN,
+    star: (p) => p.cat !== 'legend' && p.ovr >= WALKOUT_MIN && p.ovr < SPECIAL_MIN,
+    legend: (p) => p.cat === 'legend' && p.ovr >= WALKOUT_MIN && p.ovr < SPECIAL_MIN,
+    elite: (p) => p.ovr >= SPECIAL_MIN,
+  };
+  const head = pick(PLAYERS.filter(headPool[kind]), rnd);
+  const used = new Set<string>([head.person]);
+  const take = (test: (p: Player) => boolean): Player => {
+    const chosen = pick(PLAYERS.filter((p) => test(p) && !used.has(p.person) && p.ovr < head.ovr), rnd);
+    used.add(chosen.person);
+    return chosen;
+  };
+  const second = kind === 'star' ? take((p) => p.ovr >= FEATURE_MIN && p.ovr < WALKOUT_MIN) : take((p) => p.ovr >= 78 && p.ovr < 82);
+  const rest = [take((p) => p.ovr < 82), take((p) => p.ovr < 82), take((p) => p.ovr < 82)];
+  return [...rest, second, head].sort((a, b) => a.ovr - b.ovr);
+};

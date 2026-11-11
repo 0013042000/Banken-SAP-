@@ -1,26 +1,32 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement } from 'react';
 import { FLAGS, type Player } from '../data/players';
+import type { Motion } from '../game/motion';
 import { bestOf, PACKS, type PackType } from '../game/packs';
-import { buildSteps, revealOrder, styleFor, type RevealStep, type RevealStyle, type StepKind } from '../game/reveal';
+import { buildSteps, revealOrder, styleFor, type RevealMode, type RevealStep, type RevealStyle, type StepKind } from '../game/reveal';
 import { sfx, stopAllSounds } from '../game/sound';
+import type { WalkoutSpec } from '../walkout/scene';
+import { markWebglFailed, webglSupported } from '../walkout/support';
+import { Boundary } from './Boundary';
 import { Card } from './Card';
+
+/** Die 3D-Szene wird erst geladen, wenn eine besondere Karte ansteht. */
+const WalkoutCanvas = lazy(() => import('../walkout/WalkoutCanvas'));
 
 /** Vibration ist optional und wird nicht von jedem Gerät unterstützt – darf nie blockieren. */
 const buzz = (pattern: number | number[]): void => { try { navigator.vibrate?.(pattern); } catch { /* nicht unterstützt */ } };
-const prefersReducedMotion = (): boolean => {
-  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
-};
 
 /** Schutz vor Doppeltipps: direkt nach dem Öffnen bzw. nach Erreichen eines Haltebilds. */
 const START_GUARD_MS = 700;
 const HOLD_GUARD_MS = 500;
 
-type Phase = { kind: 'idle' } | { kind: 'summary' } | { kind: StepKind; index: number; hold: boolean };
+type Phase = { kind: 'idle' } | { kind: 'summary' } | { kind: StepKind; index: number; hold: boolean; dur: number };
 
 interface Props {
   readonly packType: PackType;
   /** Fest ermitteltes Pack-Ergebnis. Wenn null: Pack noch nicht geöffnet. */
   readonly cards: readonly Player[] | null;
+  /** Aufgelöste Animationseinstellung (Voll oder Reduziert). */
+  readonly motion: Motion;
   readonly onOpen: () => void;
   readonly onDone?: () => void;
   readonly nextLabel?: string;
@@ -39,17 +45,25 @@ const POS_NAMES: Record<string, string> = {
   LF: 'Linker Flügel', RF: 'Rechter Flügel', MS: 'Mittelstürmer', ST: 'Stürmer',
 };
 
-// Feste, begrenzte Dekor-Elemente (keine Zufallswerte pro Render).
+// Feste, begrenzte Dekor-Elemente der Ersatzenthüllung (keine Zufallswerte pro Render).
 const EMBERS = Array.from({ length: 16 }, (_, i) => ({ left: (i * 61 + 7) % 100, delay: ((i * 37) % 26) / 10, dur: 2.6 + (i % 5) * 0.35, size: 3 + (i % 3) * 2 }));
 const CONFETTI = Array.from({ length: 28 }, (_, i) => ({ left: (i * 37 + 5) % 100, delay: (i % 7) * 0.13, dur: 1.9 + (i % 5) * 0.25, tone: i % 5 }));
 const STARS = Array.from({ length: 12 }, (_, i) => ({ left: ((i * 29 + 8) % 88) + 6, top: ((i * 53 + 11) % 64) + 8, delay: (i % 6) * 0.35, size: 10 + (i % 4) * 4 }));
 const TUNNEL = [0, 1, 2, 3, 4];
 const cssVar = (name: string, value: string | number): CSSProperties => ({ [name]: value } as CSSProperties);
 
-const nameTag = (st: RevealStyle): string =>
-  st.legend && st.elite ? 'LEGENDÄRE WELTKLASSE' : st.legend ? 'LEGENDE' : st.elite ? 'WELTKLASSE' : 'WALKOUT';
-const darkText = (st: RevealStyle, first: boolean): string =>
-  !first ? 'Und da kommt noch einer …' : st.legend ? 'Eine Legende betritt den Rasen …' : st.elite ? 'Das Stadion hält den Atem an …' : 'Da kommt was Großes …';
+const nameTag = (st: RevealStyle): string => {
+  if (st.legend && st.elite) return 'LEGENDÄRE WELTKLASSE';
+  if (st.legend) return 'LEGENDE';
+  if (st.elite) return 'WELTKLASSE';
+  return st.tier === 'walkout' ? 'WALKOUT' : 'STARKER FUND';
+};
+const darkText = (st: RevealStyle, first: boolean): string => {
+  if (!first) return 'Und da kommt noch einer …';
+  if (st.legend) return 'Eine Legende betritt den Rasen …';
+  if (st.elite) return 'Das Stadion hält den Atem an …';
+  return 'Da kommt was Großes …';
+};
 const holdText = (st: RevealStyle, first: boolean): string => {
   if (!first) return '💥 Und noch ein Volltreffer!';
   if (st.legend && st.elite) return '👑 Legendäre Weltklasse!';
@@ -60,40 +74,45 @@ const holdText = (st: RevealStyle, first: boolean): string => {
   return 'Beste Karte des Packs';
 };
 
-export const PackOpening = ({ packType, cards, onOpen, onDone, nextLabel, onNext, onTeam, title, subtitle, revealed = false }: Props): ReactElement => {
+const NORMAL_STYLE: RevealStyle = { tier: 'normal', legend: false, elite: false };
+
+export const PackOpening = ({ packType, cards, motion, onOpen, onDone, nextLabel, onNext, onTeam, title, subtitle, revealed = false }: Props): ReactElement => {
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
+  /** Darstellungsart des laufenden Packs; wird beim Öffnen festgelegt. */
+  const [mode, setMode] = useState<RevealMode>('css');
   const timer = useRef<number | null>(null);
   const runId = useRef(0);
   const startedAt = useRef(0);
   const holdAt = useRef(0);
   const stepsRef = useRef<RevealStep[]>([]);
   const stepIdx = useRef(0);
-  const orderRef = useRef<{ order: readonly Player[]; featured: number }>({ order: [], featured: 0 });
-  const reducedRef = useRef(false);
   const cfg = PACKS[packType];
+  const reveal = useMemo(() => (cards ? revealOrder(cards) : { order: [] as readonly Player[], featured: 0 }), [cards]);
 
   const clearTimer = (): void => { if (timer.current !== null) { window.clearTimeout(timer.current); timer.current = null; } };
   const stopEffects = (): void => { clearTimer(); stopAllSounds(); buzz(0); };
 
   const finish = (): void => { stopEffects(); setPhase({ kind: 'summary' }); onDone?.(); };
 
-  const play = (step: RevealStep, index: number): void => {
-    const { order, featured } = orderRef.current;
-    const c = order[step.index]!;
+  const play = (step: RevealStep, index: number, order: readonly Player[], featured: number): void => {
+    const c = order[step.index];
+    if (!c) return;
     const st = styleFor(c);
     stepIdx.current = index;
     if (step.hold) holdAt.current = Date.now();
-    setPhase({ kind: step.kind, index: step.index, hold: !!step.hold });
+    setPhase({ kind: step.kind, index: step.index, hold: Boolean(step.hold), dur: step.dur });
     switch (step.kind) {
       case 'burst': sfx.burst(); break;
       case 'dark': sfx.suspense(step.dur); buzz([30, 220, 30, 220, 30]); break;
       case 'flag': case 'pos': sfx.flip(); break;
+      case 'walk': sfx.entrance(step.dur); buzz([20, 120, 20, 120, 40]); break;
       case 'name': sfx.flip(); buzz(40); break;
       case 'card':
         if (step.index >= featured) { sfx.reveal(c.ovr); buzz(25); break; }
         if (st.tier === 'walkout') {
           if (st.legend) sfx.legend(); else sfx.walkout();
           if (st.elite) sfx.elite();
+          sfx.crowd();
           buzz([60, 40, 60, 40, 160]);
         } else if (st.tier === 'strong') { sfx.strong(); buzz([40, 30, 80]); }
         else { sfx.reveal(c.ovr); buzz(30); }
@@ -102,29 +121,31 @@ export const PackOpening = ({ packType, cards, onOpen, onDone, nextLabel, onNext
   };
 
   /** Führt Schritt i aus und plant den nächsten, außer der Schritt ist ein Haltebild. */
-  const runFrom = (i: number, id: number): void => {
+  const runFrom = (i: number, id: number, order: readonly Player[], featured: number): void => {
     clearTimer();
     if (runId.current !== id) return;
     const steps = stepsRef.current;
-    if (i >= steps.length) { finish(); return; }
-    const step = steps[i]!;
-    play(step, i);
+    const step = steps[i];
+    if (!step) { finish(); return; }
+    play(step, i, order, featured);
     if (step.hold) return;
-    timer.current = window.setTimeout(() => runFrom(i + 1, id), step.dur);
+    timer.current = window.setTimeout(() => runFrom(i + 1, id, order, featured), step.dur);
   };
 
   useEffect(() => {
     stopEffects();
-    if (!cards) { setPhase({ kind: 'idle' }); return; }
+    if (!cards) { setPhase({ kind: 'idle' }); return undefined; }
     const id = ++runId.current;
     startedAt.current = Date.now();
-    reducedRef.current = prefersReducedMotion();
-    orderRef.current = revealOrder(cards);
-    stepsRef.current = buildSteps(orderRef.current.order, orderRef.current.featured, reducedRef.current);
-    if (revealed) { setPhase({ kind: 'summary' }); return; }
-    runFrom(0, id);
+    const { order, featured } = revealOrder(cards);
+    const nextMode: RevealMode = motion === 'reduced' ? 'reduced' : webglSupported() ? '3d' : 'css';
+    setMode(nextMode);
+    stepsRef.current = buildSteps(order, featured, nextMode);
+    if (revealed) { setPhase({ kind: 'summary' }); return undefined; }
+    runFrom(0, id, order, featured);
     // Aufräumen beim Verlassen: Timer, Töne und Vibration stoppen. Ohne Timer läuft kein Schritt mehr nach.
     return stopEffects;
+    // Die Darstellungsart wird beim Öffnen festgelegt und während eines laufenden Packs nicht gewechselt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cards]);
 
@@ -147,14 +168,16 @@ export const PackOpening = ({ packType, cards, onOpen, onDone, nextLabel, onNext
       // Dieselbe Eingabe darf nicht das Vorspulen beenden und zugleich das Haltebild überspringen.
       if (now - holdAt.current < HOLD_GUARD_MS) return;
       sfx.tap();
-      runFrom(stepIdx.current + 1, id);
+      runFrom(stepIdx.current + 1, id, reveal.order, reveal.featured);
       return;
     }
-    let j = stepIdx.current + 1;
-    while (j < steps.length && !steps[j]!.hold) j++;
+    const next = steps.findIndex((s, i) => i > stepIdx.current && s.hold);
     stopAllSounds();
-    if (j < steps.length) runFrom(j, id); else skip();
+    if (next >= 0) runFrom(next, id, reveal.order, reveal.featured); else skip();
   };
+
+  /** 3D-Szene nicht verfügbar: für den Rest der Sitzung gilt die Ersatzenthüllung. */
+  const on3dFail = (): void => { markWebglFailed(); setMode((m) => (m === '3d' ? 'css' : m)); };
 
   if (!cards || phase.kind === 'idle') {
     return (
@@ -187,51 +210,72 @@ export const PackOpening = ({ packType, cards, onOpen, onDone, nextLabel, onNext
     );
   }
 
-  const { order, featured } = orderRef.current;
+  const { order, featured } = reveal;
   const idx = phase.index;
-  const current = order[idx]!;
+  const current = order[idx];
+  if (!current) return <div className="opening" />;
   const f = FLAGS[current.nation] ?? { flag: '🏳️', name: current.nation };
-  const isFeatured = idx < featured && phase.kind !== 'burst';
-  const st: RevealStyle = isFeatured ? styleFor(current) : { tier: 'normal', legend: false, elite: false };
+  const featuredCard = idx < featured;
+  const cardStyle = featuredCard ? styleFor(current) : NORMAL_STYLE;
+  // Während des Lichtblitzes bleibt die Bühne neutral, damit er nichts verrät.
+  const st: RevealStyle = phase.kind === 'burst' ? NORMAL_STYLE : cardStyle;
   const first = idx === 0;
   const holding = phase.kind === 'card' && phase.hold;
   const special = st.tier !== 'normal';
+  const figure = mode === '3d' && cardStyle.tier !== 'normal';
+  const reduced = mode === 'reduced';
   const stageClass = [
     'stage', `tier-${st.tier}`, `ph-${phase.kind}`,
-    st.legend ? 'is-legend' : '', st.elite ? 'is-elite' : '', holding ? 'is-hold' : '', reducedRef.current ? 'is-reduced' : '',
+    st.legend ? 'is-legend' : '', st.elite ? 'is-elite' : '', holding ? 'is-hold' : '', reduced ? 'is-reduced' : '', figure ? 'has-3d' : '',
   ].filter(Boolean).join(' ');
-  const continueLabel = idx + 1 < featured ? 'Weiter – da ist noch einer' : order.length > featured && !reducedRef.current ? 'Restliche Karten zeigen' : 'Zur Packübersicht';
+  const remaining = order.length > featured && !reduced;
+  const continueLabel = idx + 1 < featured ? 'Weiter – da ist noch einer' : remaining ? 'Restliche Karten zeigen' : 'Zur Packübersicht';
+  const spec: WalkoutSpec | null = figure
+    ? { player: current, tier: cardStyle.tier, legend: cardStyle.legend, elite: cardStyle.elite }
+    : null;
+
+  const fallbackLayers = (
+    <>
+      <div className="st-lamps" />
+      <div className="st-flood st-flood-l" />
+      <div className="st-flood st-flood-r" />
+      <div className="st-crowd" />
+      {phase.kind === 'dark' && (
+        <div className="st-tunnel">{TUNNEL.map((i) => <span key={i} style={cssVar('--i', i)} />)}</div>
+      )}
+      {special && phase.kind !== 'dark' && <div className="st-rays" />}
+      {special && (
+        <div className="st-embers">
+          {EMBERS.map((e, i) => <span key={i} style={{ left: `${e.left}%`, width: e.size, height: e.size, animationDuration: `${e.dur}s`, animationDelay: `-${e.delay}s` }} />)}
+        </div>
+      )}
+      {st.legend && (
+        <div className="st-stars">
+          {STARS.map((s, i) => <span key={i} style={{ left: `${s.left}%`, top: `${s.top}%`, fontSize: s.size, animationDelay: `${s.delay}s` }}>✦</span>)}
+        </div>
+      )}
+      {phase.kind === 'card' && st.elite && (
+        <>
+          <div className="st-ring" key={`ring-${idx}`} />
+          <div className="st-confetti" key={`confetti-${idx}`}>
+            {CONFETTI.map((c, i) => <span key={i} className={`cf-${c.tone}`} style={{ left: `${c.left}%`, animationDuration: `${c.dur}s`, animationDelay: `${c.delay}s` }} />)}
+          </div>
+        </>
+      )}
+    </>
+  );
 
   return (
     <div className={stageClass} onClick={advance} role="presentation">
       <div className="st-bg" aria-hidden="true">
-        <div className="st-lamps" />
-        <div className="st-flood st-flood-l" />
-        <div className="st-flood st-flood-r" />
-        <div className="st-crowd" />
-        {phase.kind === 'dark' && (
-          <div className="st-tunnel">{TUNNEL.map((i) => <span key={i} style={cssVar('--i', i)} />)}</div>
-        )}
-        {special && phase.kind !== 'dark' && <div className="st-rays" />}
-        {special && (
-          <div className="st-embers">
-            {EMBERS.map((e, i) => <span key={i} style={{ left: `${e.left}%`, width: e.size, height: e.size, animationDuration: `${e.dur}s`, animationDelay: `-${e.delay}s` }} />)}
-          </div>
-        )}
-        {st.legend && (
-          <div className="st-stars">
-            {STARS.map((s, i) => <span key={i} style={{ left: `${s.left}%`, top: `${s.top}%`, fontSize: s.size, animationDelay: `${s.delay}s` }}>✦</span>)}
-          </div>
-        )}
+        {spec ? (
+          <Boundary fallback={fallbackLayers} onError={on3dFail}>
+            <Suspense fallback={null}>
+              <WalkoutCanvas spec={spec} phase={phase.kind} phaseDur={phase.dur} onFail={on3dFail} />
+            </Suspense>
+          </Boundary>
+        ) : fallbackLayers}
         {phase.kind === 'card' && special && <div className="st-flash" key={`flash-${idx}`} />}
-        {phase.kind === 'card' && st.elite && (
-          <>
-            <div className="st-ring" key={`ring-${idx}`} />
-            <div className="st-confetti" key={`confetti-${idx}`}>
-              {CONFETTI.map((c, i) => <span key={i} className={`cf-${c.tone}`} style={{ left: `${c.left}%`, animationDuration: `${c.dur}s`, animationDelay: `${c.delay}s` }} />)}
-            </div>
-          </>
-        )}
       </div>
 
       <div className="st-top">
@@ -260,8 +304,15 @@ export const PackOpening = ({ packType, cards, onOpen, onDone, nextLabel, onNext
             <div className="rv-label">{POS_NAMES[current.pos] ?? current.pos}</div>
           </div>
         )}
+        {phase.kind === 'walk' && (
+          <div className="rv-step rv-chip" key={`walk-${idx}`}>
+            <span className="rv-chip-flag">{f.flag}</span>
+            <span className="rv-chip-pos">{current.pos}</span>
+            <span className="rv-chip-text">{POS_NAMES[current.pos] ?? current.pos}</span>
+          </div>
+        )}
         {phase.kind === 'name' && (
-          <div className="rv-step" key={`name-${idx}`}>
+          <div className="rv-step rv-lower" key={`name-${idx}`}>
             <div className="rv-flag small">{f.flag} <span className="rv-pos-mini">{current.pos}</span></div>
             <div className="rv-name">{current.name}</div>
             <div className="rv-tag">{nameTag(st)}</div>

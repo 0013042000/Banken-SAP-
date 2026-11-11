@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Category, Player, Position } from '../../data/players';
-import { buildSteps, revealOrder, styleFor, timeToFirstHold } from '../reveal';
+import { buildSteps, revealOrder, styleFor, timeToFirstHold, type RevealMode } from '../reveal';
 
 const mk = (id: string, ovr: number, cat: Category = 'gold', pos: Position = 'ST'): Player => ({ id, person: id, name: id, nation: 'GER', pos, cat, ovr });
 
@@ -40,33 +40,51 @@ describe('Inszenierungsstufen', () => {
 
 describe('Ablauf', () => {
   const rest = [mk('c', 70), mk('d', 71), mk('e', 72)];
-  const stepsFor = (cards: Player[], reduced = false) => { const { order, featured } = revealOrder(cards); return { steps: buildSteps(order, featured, reduced), featured }; };
+  const stepsFor = (cards: Player[], mode: RevealMode = '3d') => { const { order, featured } = revealOrder(cards); return { steps: buildSteps(order, featured, mode), featured }; };
 
   it('hält genau bei den besonderen Karten an', () => {
-    expect(stepsFor([mk('a', 92), mk('b', 88), ...rest]).steps.filter((s) => s.hold)).toHaveLength(2);
-    expect(stepsFor([mk('a', 84), mk('b', 80), ...rest]).steps.filter((s) => s.hold)).toHaveLength(1);
+    for (const mode of ['3d', 'css'] as const) {
+      expect(stepsFor([mk('a', 92), mk('b', 88), ...rest], mode).steps.filter((s) => s.hold)).toHaveLength(2);
+      expect(stepsFor([mk('a', 84), mk('b', 80), ...rest], mode).steps.filter((s) => s.hold)).toHaveLength(1);
+    }
   });
 
-  it('Walkout dauert vier bis sechs Sekunden bis zum Haltebild, starke und normale Karten deutlich kürzer', () => {
+  it('mit Spielerfigur: Walkout dauert fünf bis acht Sekunden, kurzer Auftritt und normale Karte deutlich kürzer', () => {
     const walk = timeToFirstHold(stepsFor([mk('a', 92), mk('b', 80), ...rest]).steps);
     const legend = timeToFirstHold(stepsFor([mk('a', 97, 'legend'), mk('b', 80), ...rest]).steps);
     const strong = timeToFirstHold(stepsFor([mk('a', 87), mk('b', 80), ...rest]).steps);
     const normal = timeToFirstHold(stepsFor([mk('a', 84), mk('b', 80), ...rest]).steps);
-    for (const t of [walk, legend]) { expect(t).toBeGreaterThanOrEqual(4000); expect(t).toBeLessThanOrEqual(6000); }
-    expect(strong).toBeLessThan(walk);
-    expect(normal).toBeLessThan(strong);
+    for (const t of [walk, legend]) { expect(t).toBeGreaterThanOrEqual(5000); expect(t).toBeLessThanOrEqual(8000); }
+    expect(strong).toBeLessThan(walk - 2000);
+    expect(strong).toBeGreaterThan(normal);
     expect(normal).toBeLessThan(2000);
   });
 
+  it('nur mit Spielerfigur gibt es den Lauf aus dem Tunnel; ab 86 läuft die Figur, darunter nicht', () => {
+    const kinds = (cards: Player[], mode: RevealMode): string[] => stepsFor(cards, mode).steps.map((s) => s.kind);
+    expect(kinds([mk('a', 92), ...rest, mk('f', 60)], '3d')).toContain('walk');
+    expect(kinds([mk('a', 87), ...rest, mk('f', 60)], '3d')).toContain('walk');
+    expect(kinds([mk('a', 85), ...rest, mk('f', 60)], '3d')).not.toContain('walk');
+    expect(kinds([mk('a', 92), ...rest, mk('f', 60)], 'css')).not.toContain('walk');
+  });
+
+  it('Ersatzenthüllung ohne Figur bleibt bei vier bis sechs Sekunden', () => {
+    const t = timeToFirstHold(stepsFor([mk('a', 92), mk('b', 80), ...rest], 'css').steps);
+    expect(t).toBeGreaterThanOrEqual(4000);
+    expect(t).toBeLessThanOrEqual(6000);
+  });
+
   it('zweiter Auftritt ist kürzer als der erste', () => {
-    const { steps } = stepsFor([mk('a', 93), mk('b', 92), ...rest]);
-    const dur = (index: number): number => steps.filter((s) => s.index === index && s.kind !== 'burst').reduce((t, s) => t + s.dur, 0);
-    expect(dur(1)).toBeLessThan(dur(0));
-    expect(steps.some((s) => s.index === 1 && s.kind === 'dark')).toBe(true);
+    for (const mode of ['3d', 'css'] as const) {
+      const { steps } = stepsFor([mk('a', 93), mk('b', 92), ...rest], mode);
+      const dur = (index: number): number => steps.filter((s) => s.index === index && s.kind !== 'burst').reduce((t, s) => t + s.dur, 0);
+      expect(dur(1)).toBeLessThan(dur(0));
+      expect(steps.some((s) => s.index === 1 && s.kind === 'dark')).toBe(true);
+    }
   });
 
   it('reduzierte Bewegung: nur ruhige Haltebilder der besonderen Karten', () => {
-    const { steps, featured } = stepsFor([mk('a', 96), mk('b', 90), ...rest], true);
+    const { steps, featured } = stepsFor([mk('a', 96), mk('b', 90), ...rest], 'reduced');
     expect(steps).toHaveLength(featured);
     expect(steps.every((s) => s.kind === 'card' && s.hold)).toBe(true);
   });

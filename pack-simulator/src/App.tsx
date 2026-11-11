@@ -4,6 +4,7 @@ import {
   getStorageOk, loadCollection, loadSettings, loadTeamRaw, saveCollection, saveSettings, saveTeam, subscribeStorageStatus,
   type Collection as Coll, type Settings,
 } from './game/storage';
+import { useMotion } from './game/motion';
 import { setMuted, sfx, unlockAudio } from './game/sound';
 import { sameTeam, sanitizeTeam, type Team } from './game/team';
 import { FreeMode } from './components/FreeMode';
@@ -23,6 +24,7 @@ export default function App(): ReactElement {
   const [rawTeam, setTeam] = useState<Team>(() => sanitizeTeam(loadTeamRaw(), ownedSet(loadCollection())));
   const storageOk = useSyncExternalStore(subscribeStorageStatus, getStorageOk);
 
+  const motion = useMotion(settings.animation);
   const owned = useMemo(() => ownedSet(collection), [collection]);
   // Nur besessene Spieler dürfen aufgestellt sein (z. B. nach dem Zurücksetzen der Sammlung).
   // Das gültige Team wird beim Rendern abgeleitet; der Name bleibt beim Tippen unangetastet.
@@ -34,6 +36,8 @@ export default function App(): ReactElement {
   useEffect(() => { saveCollection(collection); }, [collection]);
   useEffect(() => { saveSettings(settings); setMuted(settings.muted); }, [settings]);
   useEffect(() => { saveTeam(team); }, [team]);
+  // Ruhige Darstellung als Klasse am Wurzelelement, damit auch reine CSS-Animationen folgen.
+  useEffect(() => { document.documentElement.classList.toggle('motion-reduced', motion === 'reduced'); }, [motion]);
 
   const collect = (cards: readonly Player[]): void => {
     setCollection((c) => { const n = { ...c }; for (const p of cards) n[p.id] = (n[p.id] ?? 0) + 1; return n; });
@@ -59,8 +63,8 @@ export default function App(): ReactElement {
         {!storageOk && (
           <p className="storage-warning" role="status">Speichern ist in diesem Browser gerade nicht möglich. Du kannst weiterspielen, aber Änderungen bleiben nach dem Schließen eventuell nicht erhalten.</p>
         )}
-        {tab === 'frei' && <FreeMode dreamLuck={settings.dreamLuck} onCollect={collect} onTeam={() => go('team')} />}
-        {tab === 'duell' && <DuelMode dreamLuck={settings.dreamLuck} onTeam={() => go('team')} />}
+        {tab === 'frei' && <FreeMode dreamLuck={settings.dreamLuck} motion={motion} onCollect={collect} onTeam={() => go('team')} />}
+        {tab === 'duell' && <DuelMode dreamLuck={settings.dreamLuck} motion={motion} onTeam={() => go('team')} />}
         {tab === 'team' && <TeamView team={team} collection={collection} onChange={setTeam} onGoPacks={() => go('frei')} />}
         {tab === 'sammlung' && <Collection collection={collection} team={team} onTeamChange={setTeam} onGoTeam={() => go('team')} onReset={() => setCollection({})} />}
         {tab === 'credits' && <Credits onClose={() => go('frei')} />}

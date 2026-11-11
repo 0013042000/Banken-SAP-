@@ -284,11 +284,37 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3
 @keyframes card-rise { 0% { transform: translateY(90px) scale(0.7); opacity: 0 } 65% { transform: translateY(-8px) scale(1.05); opacity: 1 } 100% { transform: none } }
 @keyframes card-walk { 0% { transform: translateY(120px) scale(0.3); opacity: 0; filter: brightness(3) } 60% { transform: translateY(-12px) scale(1.08); opacity: 1; filter: brightness(1.7) } 100% { transform: none; filter: brightness(1) } }
 
-/* Stark vereinfachte Enthüllung bei reduzierter Bewegung */
-@media (prefers-reduced-motion: reduce) {
-  .stage, .stage *, .pack, .pack-shine { animation: none !important; transition: none !important; }
-  .st-tunnel, .st-embers, .st-confetti, .st-flash, .st-ring, .st-stars, .st-rays { display: none !important; }
-}
+/* Ruhige Enthüllung: gesteuert über die Einstellung (Automatisch folgt dem System) */
+.motion-reduced .stage, .motion-reduced .stage *, .motion-reduced .pack, .motion-reduced .pack-shine { animation: none !important; transition: none !important; }
+.motion-reduced .st-tunnel, .motion-reduced .st-embers, .motion-reduced .st-confetti, .motion-reduced .st-flash, .motion-reduced .st-ring, .motion-reduced .st-stars, .motion-reduced .st-rays { display: none !important; }
+.motion-reduced .stage .rv-card, .motion-reduced .stage .st-bottom { animation: rv-fade 0.55s ease-out both !important; }
+.motion-reduced .stage .rv-halo { display: block; opacity: 0.8; }
+@keyframes rv-fade { from { opacity: 0 } to { opacity: 1 } }
+
+/* ---- Enthüllung mit 3D-Spielerfigur ---- */
+.st-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+.stage.has-3d { background: #02040b; }
+.stage.has-3d .rv-step { text-shadow: 0 2px 14px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.8); }
+.stage.has-3d .st-center { justify-content: flex-start; padding-top: 3%; }
+.stage.has-3d .rv-flag.big { font-size: 5.2rem; }
+.stage.has-3d .rv-pos { font-size: 3.6rem; }
+.stage.has-3d .rv-dark-text { background: rgba(0,0,0,0.35); border-radius: 12px; padding: 6px 14px; }
+.stage.has-3d .rv-step:not(.rv-lower):not(.rv-chip):not(.rv-dark) { padding: 8px 30px 12px; background: radial-gradient(ellipse at center, rgba(0,0,0,0.62), rgba(0,0,0,0) 72%); }
+.stage.has-3d .rv-name { background: none; -webkit-text-fill-color: #ffffff; color: #ffffff; animation: rv-pop 0.5s both; }
+.rv-chip { flex-direction: row; align-items: center; gap: 10px; padding: 6px 14px; border-radius: 999px; background: rgba(0,0,0,0.5); border: 1px solid rgba(var(--acc),0.55); animation: rv-pop 0.3s both; }
+.rv-chip-flag { font-size: 1.5rem; line-height: 1; }
+.rv-chip-pos { font-weight: 900; letter-spacing: 2px; color: rgb(var(--acc)); }
+.rv-chip-text { font-size: 0.85rem; color: var(--text); font-weight: 700; }
+.stage.has-3d.ph-name .st-center { justify-content: flex-end; padding-bottom: 2%; }
+.stage.has-3d .rv-lower { width: 100%; padding: 12px 10px 14px; background: linear-gradient(90deg, transparent, rgba(0,0,0,0.62) 18%, rgba(0,0,0,0.62) 82%, transparent); }
+.stage.has-3d .rv-lower .rv-name { font-size: clamp(1.5rem, 8vw, 2.6rem); }
+/* Haltebild: Figur links in der Szene, Karte rechts daneben */
+.stage.has-3d.ph-card .st-center { justify-content: center; align-items: flex-end; padding: 8px 2.5% 8px 46%; }
+.stage.has-3d .card-lg { width: min(49vw, 230px, 33dvh); font-size: min(3.47vw, 16.3px, 2.34dvh); padding: 0.75em 0.5em 0.6em; }
+.stage.has-3d .rv-card-strong, .stage.has-3d .rv-card-walkout { animation: card-join 0.75s cubic-bezier(.2,.9,.3,1.1) both; }
+@keyframes card-join { 0% { transform: translateX(70%) scale(0.75) rotateY(-35deg); opacity: 0 } 70% { transform: translateX(-3%) scale(1.03); opacity: 1 } 100% { transform: none } }
+.stage.has-3d .st-flash { animation-duration: 0.7s; filter: opacity(0.45); }
+.stage.has-3d.is-hold .st-bottom { background: linear-gradient(180deg, transparent, rgba(0,0,0,0.78) 42%); }
 
 /* ===================== Dialoge ===================== */
 .modal-backdrop { position: fixed; inset: 0; z-index: 30; background: rgba(2,4,10,0.78); display: flex; align-items: flex-end; justify-content: center; overscroll-behavior: contain; }
@@ -305,7 +331,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3
 .modal-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .modal-actions .btn { flex: 1 1 140px; }
 .compare-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
-@media (prefers-reduced-motion: reduce) { .modal { animation: none; } }
+.motion-reduced .modal { animation: none; }
 
 /* ===================== Mein Team ===================== */
 .team-head { width: 100%; max-width: 560px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
