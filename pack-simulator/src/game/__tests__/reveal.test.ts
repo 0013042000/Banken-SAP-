@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Category, Player, Position } from '../../data/players';
 import { buildSteps, revealOrder, styleFor, timeToFirstHold } from '../reveal';
 
-const mk = (id: string, ovr: number, cat: Category = 'gold', pos: Position = 'ST'): Player => ({ id, name: id, nation: 'GER', pos, cat, ovr });
+const mk = (id: string, ovr: number, cat: Category = 'gold', pos: Position = 'ST'): Player => ({ id, person: id, name: id, nation: 'GER', pos, cat, ovr });
 
 describe('Enthüllungsreihenfolge', () => {
   it('zeigt die beste Karte zuerst und verändert das Pack nicht', () => {

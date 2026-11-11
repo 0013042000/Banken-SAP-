@@ -2,14 +2,19 @@ import { PLAYER_BY_ID } from '../data/players';
 
 export type Collection = Readonly<Record<string, number>>;
 
+/** Automatisch folgt der Systemeinstellung; Voll und Reduziert sind bewusste Entscheidungen. */
+export type AnimationMode = 'auto' | 'voll' | 'reduziert';
+
 export interface Settings {
   readonly dreamLuck: boolean;
   readonly muted: boolean;
+  readonly animation: AnimationMode;
 }
 
 const KEY_COLLECTION = 'fps.collection.v1';
 const KEY_SETTINGS = 'fps.settings.v1';
 const KEY_TEAM = 'fps.team.v1';
+const KEY_TEAMS = 'fps.teams.v2';
 
 const readRaw = (key: string): unknown => {
   try {
@@ -66,10 +71,15 @@ export const saveCollection = (c: Collection): boolean => write(KEY_COLLECTION, 
 export const loadSettings = (): Settings => {
   const raw = readRaw(KEY_SETTINGS);
   const o = isRecord(raw) ? raw : {};
-  return { dreamLuck: o.dreamLuck === true, muted: o.muted === true };
+  const animation: AnimationMode = o.animation === 'voll' || o.animation === 'reduziert' ? o.animation : 'auto';
+  return { dreamLuck: o.dreamLuck === true, muted: o.muted === true, animation };
 };
 export const saveSettings = (s: Settings): boolean => write(KEY_SETTINGS, s);
 
-/** Team-Rohdaten; die Validierung übernimmt sanitizeTeam aus game/team. */
+/** Mannschaften je Profil (neues Format); die Validierung übernimmt sanitizeTeamBook aus game/team. */
+export const loadTeamsRaw = (): unknown => readRaw(KEY_TEAMS);
+export const saveTeams = (book: unknown): boolean => write(KEY_TEAMS, book);
+
+/** Altes gemeinsames Team (Format v1). Wird nur noch gelesen und bleibt als Sicherung im Speicher. */
 export const loadTeamRaw = (): unknown => readRaw(KEY_TEAM);
 export const saveTeam = (team: unknown): boolean => write(KEY_TEAM, team);

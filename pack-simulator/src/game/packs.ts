@@ -78,6 +78,7 @@ export const drawPack = (type: PackType, dreamLuck: boolean, rnd: () => number =
   const weights = { ...cfg.weights };
   if (dreamLuck) for (const t of Object.keys(weights) as Tier[]) weights[t] *= DREAM_LUCK_MULTIPLIER[t];
 
+  // Keine reale Person doppelt im Pack – auch nicht als andere Kartenversion.
   const used = new Set<string>();
   const result: Player[] = [];
 
@@ -95,20 +96,20 @@ export const drawPack = (type: PackType, dreamLuck: boolean, rnd: () => number =
   }
   const gTier = weightedTier(gWeights, rnd);
   const g = pick((byTier.get(gTier) ?? []).filter(cfg.guarantee.test), rnd);
-  used.add(g.id); result.push(g);
+  used.add(g.person); result.push(g);
 
   let guard = 0;
   while (result.length < cfg.cards && guard++ < 500) {
     const t = weightedTier(weights, rnd);
-    const pool = (byTier.get(t) ?? []).filter((x) => !used.has(x.id));
+    const pool = (byTier.get(t) ?? []).filter((x) => !used.has(x.person));
     if (pool.length === 0) continue;
     const pl = pick(pool, rnd);
-    used.add(pl.id); result.push(pl);
+    used.add(pl.person); result.push(pl);
   }
   // Notfall-Auffüllung, falls ein Tier leer war (sollte nicht vorkommen)
   while (result.length < cfg.cards) {
-    const pool = PLAYERS.filter((x) => !used.has(x.id));
-    const pl = pick(pool, rnd); used.add(pl.id); result.push(pl);
+    const pool = PLAYERS.filter((x) => !used.has(x.person));
+    const pl = pick(pool, rnd); used.add(pl.person); result.push(pl);
   }
 
   // Enthüllung: aufsteigend, beste Karte zuletzt – mehr Spannung
@@ -122,7 +123,7 @@ export const bestOf = (cards: readonly Player[]): Player =>
 export const demoWalkoutPack = (rnd: () => number = Math.random): readonly Player[] => {
   const top = PLAYERS.filter((p) => p.ovr >= 93);
   const star = pick(top, rnd);
-  const rest = PLAYERS.filter((p) => p.ovr >= 82 && p.ovr < 90 && p.id !== star.id);
+  const rest = PLAYERS.filter((p) => p.ovr >= 82 && p.ovr < 90 && p.person !== star.person);
   const chosen: Player[] = [];
   const used = new Set<string>();
   while (chosen.length < 4) { const c = pick(rest, rnd); if (!used.has(c.id)) { used.add(c.id); chosen.push(c); } }

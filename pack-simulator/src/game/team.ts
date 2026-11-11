@@ -1,7 +1,7 @@
 import { PLAYER_BY_ID, type Player, type Position } from '../data/players';
 
-export type FormationId = '4-3-3' | '4-4-2';
-export type SlotRole = 'TW' | 'LV' | 'IV' | 'RV' | 'ZM' | 'LM' | 'RM' | 'LF' | 'RF' | 'ST';
+export type FormationId = '4-3-3' | '4-4-2' | '4-2-3-1' | '3-5-2' | '4-1-2-1-2';
+export type SlotRole = 'TW' | 'LV' | 'IV' | 'RV' | 'ZDM' | 'ZM' | 'ZOM' | 'LM' | 'RM' | 'LF' | 'RF' | 'ST';
 
 export interface SlotDef {
   readonly id: string;
@@ -20,7 +20,9 @@ export const ROLE_ACCEPTS: Readonly<Record<SlotRole, readonly Position[]>> = {
   LV: ['LV', 'RV'],
   RV: ['RV', 'LV'],
   IV: ['IV', 'ZDM'],
+  ZDM: ['ZDM', 'ZM'],
   ZM: ['ZM', 'ZDM', 'ZOM'],
+  ZOM: ['ZOM', 'ZM', 'MS'],
   LM: ['LM', 'LF', 'RM'],
   RM: ['RM', 'RF', 'LM'],
   LF: ['LF', 'LM', 'RF'],
@@ -30,7 +32,8 @@ export const ROLE_ACCEPTS: Readonly<Record<SlotRole, readonly Position[]>> = {
 
 /** Deutsche Bezeichnung der Aufstellungsplätze. */
 export const ROLE_LABEL: Readonly<Record<SlotRole, string>> = {
-  TW: 'Tor', LV: 'Linke Abwehr', IV: 'Innenverteidigung', RV: 'Rechte Abwehr', ZM: 'Zentrales Mittelfeld',
+  TW: 'Tor', LV: 'Linke Abwehr', IV: 'Innenverteidigung', RV: 'Rechte Abwehr', ZDM: 'Defensives Mittelfeld',
+  ZM: 'Zentrales Mittelfeld', ZOM: 'Offensives Mittelfeld',
   LM: 'Linkes Mittelfeld', RM: 'Rechtes Mittelfeld', LF: 'Linker Flügel', RF: 'Rechter Flügel', ST: 'Sturm',
 };
 
@@ -53,9 +56,28 @@ export const FORMATIONS: Readonly<Record<FormationId, readonly SlotDef[]>> = {
     { id: 'LM', role: 'LM', x: 13, y: 41 }, { id: 'ZM1', role: 'ZM', x: 37, y: 46 }, { id: 'ZM2', role: 'ZM', x: 63, y: 46 }, { id: 'RM', role: 'RM', x: 87, y: 41 },
     { id: 'ST1', role: 'ST', x: 35, y: 15 }, { id: 'ST2', role: 'ST', x: 65, y: 15 },
   ],
+  '4-2-3-1': [
+    KEEPER, ...DEFENCE,
+    { id: 'ZDM1', role: 'ZDM', x: 36, y: 52 }, { id: 'ZDM2', role: 'ZDM', x: 64, y: 52 },
+    { id: 'LF', role: 'LF', x: 16, y: 30 }, { id: 'ZOM', role: 'ZOM', x: 50, y: 33 }, { id: 'RF', role: 'RF', x: 84, y: 30 },
+    { id: 'ST', role: 'ST', x: 50, y: 12 },
+  ],
+  '3-5-2': [
+    KEEPER,
+    { id: 'IV1', role: 'IV', x: 24, y: 70 }, { id: 'IV2', role: 'IV', x: 50, y: 71 }, { id: 'IV3', role: 'IV', x: 76, y: 70 },
+    { id: 'LM', role: 'LM', x: 11, y: 38 }, { id: 'ZM1', role: 'ZM', x: 30.5, y: 46 }, { id: 'ZDM', role: 'ZDM', x: 50, y: 52 },
+    { id: 'ZM2', role: 'ZM', x: 69.5, y: 46 }, { id: 'RM', role: 'RM', x: 89, y: 38 },
+    { id: 'ST1', role: 'ST', x: 35, y: 15 }, { id: 'ST2', role: 'ST', x: 65, y: 15 },
+  ],
+  '4-1-2-1-2': [
+    KEEPER, ...DEFENCE,
+    { id: 'ZDM', role: 'ZDM', x: 50, y: 52 }, { id: 'ZM1', role: 'ZM', x: 27, y: 42 }, { id: 'ZM2', role: 'ZM', x: 73, y: 42 },
+    { id: 'ZOM', role: 'ZOM', x: 50, y: 31 },
+    { id: 'ST1', role: 'ST', x: 32, y: 13 }, { id: 'ST2', role: 'ST', x: 68, y: 13 },
+  ],
 };
 
-export const FORMATION_IDS: readonly FormationId[] = ['4-3-3', '4-4-2'];
+export const FORMATION_IDS: readonly FormationId[] = ['4-3-3', '4-4-2', '4-2-3-1', '3-5-2', '4-1-2-1-2'];
 export const DEFAULT_FORMATION: FormationId = '4-3-3';
 export const DEFAULT_TEAM_NAME = 'Ariels Dream Team';
 export const TEAM_NAME_MAX = 24;
@@ -82,21 +104,24 @@ export const isExact = (p: Player, role: SlotRole): boolean => ROLE_ACCEPTS[role
 export const canPlace = (p: Player, role: SlotRole): boolean => (role === 'TW') === (p.pos === 'TW');
 
 export const slotIndexOf = (team: Team, playerId: string): number => team.lineup.indexOf(playerId);
+/** Platz, auf dem dieselbe reale Person steht – auch mit einer anderen Kartenversion. */
+export const slotIndexOfPerson = (team: Team, person: string): number =>
+  team.lineup.findIndex((id) => id !== null && PLAYER_BY_ID.get(id)?.person === person);
 export const lineupPlayers = (team: Team): Player[] =>
   team.lineup.map((id) => (id ? PLAYER_BY_ID.get(id) : undefined)).filter((p): p is Player => p !== undefined);
 export const filledCount = (team: Team): number => team.lineup.filter((id) => id !== null).length;
 
-export const normalizeName = (raw: unknown): string => {
-  if (typeof raw !== 'string') return DEFAULT_TEAM_NAME;
+export const normalizeName = (raw: unknown, fallback: string = DEFAULT_TEAM_NAME): string => {
+  if (typeof raw !== 'string') return fallback;
   const clean = raw.replace(/\s+/g, ' ').trim().slice(0, TEAM_NAME_MAX);
-  return clean.length > 0 ? clean : DEFAULT_TEAM_NAME;
+  return clean.length > 0 ? clean : fallback;
 };
 
 /**
  * Bereinigt beliebige (auch beschädigte) Daten zu einem gültigen Team.
  * Entfernt unbekannte, nicht besessene, doppelte und regelwidrig platzierte Spieler.
  */
-export const sanitizeTeam = (raw: unknown, owned: ReadonlySet<string>): Team => {
+export const sanitizeTeam = (raw: unknown, owned: ReadonlySet<string>, fallbackName: string = DEFAULT_TEAM_NAME): Team => {
   const obj = raw !== null && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
   const formation = FORMATION_IDS.includes(obj.formation as FormationId) ? (obj.formation as FormationId) : DEFAULT_FORMATION;
   const slots = FORMATIONS[formation];
@@ -104,13 +129,13 @@ export const sanitizeTeam = (raw: unknown, owned: ReadonlySet<string>): Team => 
   const seen = new Set<string>();
   const lineup = slots.map((slot, i) => {
     const id = rawLineup[i];
-    if (typeof id !== 'string' || seen.has(id) || !owned.has(id)) return null;
+    if (typeof id !== 'string' || !owned.has(id)) return null;
     const p = PLAYER_BY_ID.get(id);
-    if (!p || !canPlace(p, slot.role)) return null;
-    seen.add(id);
+    if (!p || seen.has(p.person) || !canPlace(p, slot.role)) return null;
+    seen.add(p.person);
     return id;
   });
-  return { name: normalizeName(obj.name), formation, lineup };
+  return { name: normalizeName(obj.name, fallbackName), formation, lineup };
 };
 
 export const sameTeam = (a: Team, b: Team): boolean =>
@@ -189,7 +214,10 @@ const FORBIDDEN = 1e9;
  */
 export const assignBest = (formation: FormationId, candidates: readonly Player[]): (string | null)[] => {
   const slots = FORMATIONS[formation];
-  const unique = [...new Map(candidates.map((p) => [p.id, p])).values()].sort(byRating);
+  // Jede reale Person höchstens einmal: von mehreren Kartenversionen zählt die beste.
+  const bestByPerson = new Map<string, Player>();
+  for (const p of [...candidates].sort(byRating)) if (!bestByPerson.has(p.person)) bestByPerson.set(p.person, p);
+  const unique = [...bestByPerson.values()].sort(byRating);
   if (unique.length === 0) return emptyLineup();
   const top = FILL_BONUS + 200;
   const cost = slots.map((slot) => [
@@ -246,12 +274,13 @@ export const placePlayer = (team: Team, slotIndex: number, playerId: string): Te
   const slot = slots[slotIndex];
   const p = PLAYER_BY_ID.get(playerId);
   if (!slot || !p || !canPlace(p, slot.role)) return team;
-  const from = slotIndexOf(team, playerId);
-  if (from === slotIndex) return team;
+  // Dieselbe Person (auch als andere Kartenversion) gilt als bereits aufgestellt und wird verschoben.
+  const from = slotIndexOfPerson(team, p.person);
+  if (from === slotIndex && team.lineup[slotIndex] === playerId) return team;
   const lineup = [...team.lineup];
   const previous = lineup[slotIndex] ?? null;
   lineup[slotIndex] = playerId;
-  if (from >= 0) {
+  if (from >= 0 && from !== slotIndex) {
     const prevPlayer = previous ? PLAYER_BY_ID.get(previous) : undefined;
     lineup[from] = prevPlayer && canPlace(prevPlayer, slots[from]!.role) ? previous : null;
   }
@@ -266,3 +295,55 @@ export const removeAt = (team: Team, slotIndex: number): Team => {
 };
 
 export const clearLineup = (team: Team): Team => ({ ...team, lineup: emptyLineup() });
+
+// ---- Eigene Mannschaften für Semon und Ariel, vorhandenes gemeinsames Team bleibt als Bestandsteam ----
+
+export type TeamOwner = 'semon' | 'ariel' | 'bestand';
+export const PROFILE_OWNERS: readonly TeamOwner[] = ['semon', 'ariel'];
+export const OWNER_LABEL: Readonly<Record<TeamOwner, string>> = { semon: 'Semon', ariel: 'Ariel', bestand: 'Gemeinsam' };
+export const DEFAULT_TEAM_NAMES: Readonly<Record<TeamOwner, string>> = {
+  semon: 'Semons Team', ariel: 'Ariels Dream Team', bestand: 'Gemeinsames Team',
+};
+
+export interface TeamBook {
+  readonly active: TeamOwner;
+  /** semon und ariel sind immer vorhanden; bestand nur, wenn ein altes gemeinsames Team übernommen wurde. */
+  readonly teams: Readonly<{ semon: Team; ariel: Team; bestand?: Team }>;
+}
+
+const isObj = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * Lädt die Mannschaften. Gibt es noch keinen neuen Speicherstand, wird ein vorhandenes
+ * gemeinsames Team (altes Format) als Bestandsteam übernommen statt gelöscht.
+ */
+export const sanitizeTeamBook = (rawBook: unknown, rawLegacyTeam: unknown, owned: ReadonlySet<string>): TeamBook => {
+  if (isObj(rawBook) && isObj(rawBook.teams)) {
+    const t = rawBook.teams;
+    const bestand = isObj(t.bestand) ? sanitizeTeam(t.bestand, owned, DEFAULT_TEAM_NAMES.bestand) : undefined;
+    const active: TeamOwner = rawBook.active === 'ariel' ? 'ariel' : rawBook.active === 'bestand' && bestand ? 'bestand' : 'semon';
+    return {
+      active,
+      teams: {
+        semon: sanitizeTeam(t.semon, owned, DEFAULT_TEAM_NAMES.semon),
+        ariel: sanitizeTeam(t.ariel, owned, DEFAULT_TEAM_NAMES.ariel),
+        ...(bestand ? { bestand } : {}),
+      },
+    };
+  }
+  const fresh = { semon: emptyTeam(DEFAULT_FORMATION, DEFAULT_TEAM_NAMES.semon), ariel: emptyTeam(DEFAULT_FORMATION, DEFAULT_TEAM_NAMES.ariel) };
+  if (isObj(rawLegacyTeam)) {
+    const legacy = sanitizeTeam(rawLegacyTeam, owned, DEFAULT_TEAM_NAMES.bestand);
+    const customName = legacy.name !== DEFAULT_TEAM_NAME && legacy.name !== DEFAULT_TEAM_NAMES.bestand;
+    if (filledCount(legacy) > 0 || customName) {
+      const name = legacy.name === DEFAULT_TEAM_NAME ? DEFAULT_TEAM_NAMES.bestand : legacy.name;
+      return { active: 'bestand', teams: { ...fresh, bestand: { ...legacy, name } } };
+    }
+  }
+  return { active: 'semon', teams: fresh };
+};
+
+export const teamOf = (book: TeamBook, owner: TeamOwner): Team => book.teams[owner] ?? book.teams.semon;
+export const ownersOf = (book: TeamBook): TeamOwner[] => (book.teams.bestand ? ['semon', 'ariel', 'bestand'] : ['semon', 'ariel']);
+export const withTeam = (book: TeamBook, owner: TeamOwner, team: Team): TeamBook =>
+  ({ ...book, teams: { ...book.teams, [owner]: team } });

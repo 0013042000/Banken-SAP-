@@ -3,7 +3,12 @@ export type Position =
 export type Category = 'gold' | 'star' | 'legend';
 
 export interface Player {
+  /** Eindeutige Karten-ID (eine Person kann mehrere Kartenversionen haben). */
   readonly id: string;
+  /** Reale Person hinter der Karte; bei der Basiskarte identisch mit der ID. */
+  readonly person: string;
+  /** Bezeichnung der Kartenversion, z. B. "Prime"; leer bei der Basiskarte. */
+  readonly version?: string;
   readonly name: string;
   readonly nation: string; // ISO-ähnlicher Code
   readonly pos: Position;
@@ -28,10 +33,19 @@ export const FLAGS: Record<string, { flag: string; name: string }> = {
   HUN: { flag: '🇭🇺', name: 'Ungarn' }, NIR: { flag: '🇬🇧', name: 'Nordirland' },
   SCO: { flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', name: 'Schottland' }, WAL: { flag: '🏴󠁧󠁢󠁷󠁬󠁳󠁿', name: 'Wales' },
   TUR: { flag: '🇹🇷', name: 'Türkei' }, GHA: { flag: '🇬🇭', name: 'Ghana' },
+  SUI: { flag: '🇨🇭', name: 'Schweiz' }, CAN: { flag: '🇨🇦', name: 'Kanada' },
+  ECU: { flag: '🇪🇨', name: 'Ecuador' }, GEO: { flag: '🇬🇪', name: 'Georgien' },
+  COL: { flag: '🇨🇴', name: 'Kolumbien' }, DEN: { flag: '🇩🇰', name: 'Dänemark' },
+  SRB: { flag: '🇷🇸', name: 'Serbien' }, IRL: { flag: '🇮🇪', name: 'Irland' },
+  ROU: { flag: '🇷🇴', name: 'Rumänien' }, BUL: { flag: '🇧🇬', name: 'Bulgarien' },
+  LBR: { flag: '🇱🇷', name: 'Liberia' },
 };
 
 const p = (id: string, name: string, nation: string, pos: Position, cat: Category, ovr: number): Player =>
-  ({ id, name, nation, pos, cat, ovr });
+  ({ id, person: id, name, nation, pos, cat, ovr });
+/** Zusätzliche Kartenversion einer Person (eigene, fiktive Spielwerte). */
+const v = (person: string, version: string, name: string, nation: string, pos: Position, cat: Category, ovr: number): Player =>
+  ({ id: `${person}-${version.toLowerCase()}`, person, version, name, nation, pos, cat, ovr });
 
 export const PLAYERS: readonly Player[] = [
   // --- Aktuelle Stars ---
@@ -115,6 +129,52 @@ export const PLAYERS: readonly Player[] = [
   p('guirassy', 'Serhou Guirassy', 'FRA', 'ST', 'gold', 83),
   p('beier', 'Maximilian Beier', 'GER', 'ST', 'gold', 76),
   p('nmecha', 'Felix Nmecha', 'GER', 'ZM', 'gold', 76),
+  // --- Erweiterung: weitere aktuelle Spieler (für vollständige Drafts auf allen Positionen) ---
+  p('maignan', 'Mike Maignan', 'FRA', 'TW', 'star', 87),
+  p('emartinez', 'Emiliano Martínez', 'ARG', 'TW', 'star', 87),
+  p('ederson', 'Ederson', 'BRA', 'TW', 'star', 86),
+  p('raya', 'David Raya', 'ESP', 'TW', 'gold', 85),
+  p('usimon', 'Unai Simón', 'ESP', 'TW', 'gold', 85),
+  p('sommer', 'Yann Sommer', 'SUI', 'TW', 'gold', 84),
+  p('nmendes', 'Nuno Mendes', 'POR', 'LV', 'star', 86),
+  p('theo', 'Theo Hernández', 'FRA', 'LV', 'gold', 85),
+  p('davies', 'Alphonso Davies', 'CAN', 'LV', 'gold', 84),
+  p('robertson', 'Andrew Robertson', 'SCO', 'LV', 'gold', 83),
+  p('mittelstadt', 'Maximilian Mittelstädt', 'GER', 'LV', 'gold', 80),
+  p('carvajal', 'Dani Carvajal', 'ESP', 'RV', 'star', 86),
+  p('kounde', 'Jules Koundé', 'FRA', 'RV', 'gold', 85),
+  p('walker', 'Kyle Walker', 'ENG', 'RV', 'gold', 82),
+  p('dias', 'Rúben Dias', 'POR', 'IV', 'star', 87),
+  p('bastoni', 'Alessandro Bastoni', 'ITA', 'IV', 'star', 87),
+  p('gabriel', 'Gabriel Magalhães', 'BRA', 'IV', 'star', 86),
+  p('marquinhos', 'Marquinhos', 'BRA', 'IV', 'star', 86),
+  p('militao', 'Éder Militão', 'BRA', 'IV', 'gold', 85),
+  p('araujo', 'Ronald Araújo', 'URU', 'IV', 'gold', 85),
+  p('kimminjae', 'Kim Min-jae', 'KOR', 'IV', 'gold', 84),
+  p('caicedo', 'Moisés Caicedo', 'ECU', 'ZDM', 'star', 86),
+  p('tchouameni', 'Aurélien Tchouaméni', 'FRA', 'ZDM', 'gold', 85),
+  p('zubimendi', 'Martín Zubimendi', 'ESP', 'ZDM', 'gold', 84),
+  p('pavlovic', 'Aleksandar Pavlović', 'GER', 'ZDM', 'gold', 82),
+  p('vitinha', 'Vitinha', 'POR', 'ZM', 'star', 88),
+  p('barella', 'Nicolò Barella', 'ITA', 'ZM', 'star', 87),
+  p('macallister', 'Alexis Mac Allister', 'ARG', 'ZM', 'star', 86),
+  p('kvara', 'Khvicha Kvaratskhelia', 'GEO', 'LF', 'star', 87),
+  p('nwilliams', 'Nico Williams', 'ESP', 'LF', 'star', 86),
+  p('diaz', 'Luis Díaz', 'COL', 'LF', 'gold', 85),
+  p('rodrygo', 'Rodrygo', 'BRA', 'RF', 'gold', 85),
+  p('jalvarez', 'Julián Álvarez', 'ARG', 'ST', 'star', 87),
+  // --- Eigene Sonderkarten: zweite Kartenversion derselben Person (fiktive Spielwerte) ---
+  v('messi', 'Prime', 'Lionel Messi', 'ARG', 'RF', 'star', 96),
+  v('cr7', 'Prime', 'Cristiano Ronaldo', 'POR', 'ST', 'star', 96),
+  v('neymar', 'Prime', 'Neymar Jr', 'BRA', 'LF', 'star', 93),
+  v('kdb', 'Prime', 'Kevin De Bruyne', 'BEL', 'ZM', 'star', 93),
+  v('lewandowski', 'Prime', 'Robert Lewandowski', 'POL', 'ST', 'star', 93),
+  v('salah', 'Prime', 'Mohamed Salah', 'EGY', 'RF', 'star', 92),
+  v('neuer', 'Prime', 'Manuel Neuer', 'GER', 'TW', 'star', 92),
+  v('vandijk', 'Prime', 'Virgil van Dijk', 'NED', 'IV', 'star', 92),
+  v('modric', 'Prime', 'Luka Modrić', 'CRO', 'ZM', 'star', 91),
+  v('muller', 'Prime', 'Thomas Müller', 'GER', 'ZOM', 'star', 90),
+  v('reus', 'Prime', 'Marco Reus', 'GER', 'ZOM', 'star', 89),
   // --- Legenden & Kultspieler ---
   p('pele', 'Pelé', 'BRA', 'MS', 'legend', 97),
   p('maradona', 'Diego Maradona', 'ARG', 'ZOM', 'legend', 96),
@@ -177,9 +237,81 @@ export const PLAYERS: readonly Player[] = [
   p('klose', 'Miroslav Klose', 'GER', 'ST', 'legend', 86),
   p('dalglish', 'Kenny Dalglish', 'SCO', 'MS', 'legend', 88),
   p('giggs', 'Ryan Giggs', 'WAL', 'LM', 'legend', 87),
+  // --- Erweiterung: weitere Legenden und Kultspieler ---
+  p('schmeichel', 'Peter Schmeichel', 'DEN', 'TW', 'legend', 91),
+  p('zoff', 'Dino Zoff', 'ITA', 'TW', 'legend', 91),
+  p('vandersar', 'Edwin van der Sar', 'NED', 'TW', 'legend', 90),
+  p('banks', 'Gordon Banks', 'ENG', 'TW', 'legend', 90),
+  p('maier', 'Sepp Maier', 'GER', 'TW', 'legend', 90),
+  p('cech', 'Petr Čech', 'CZE', 'TW', 'legend', 89),
+  p('facchetti', 'Giacinto Facchetti', 'ITA', 'LV', 'legend', 91),
+  p('breitner', 'Paul Breitner', 'GER', 'LV', 'legend', 90),
+  p('brehme', 'Andreas Brehme', 'GER', 'LV', 'legend', 89),
+  p('marcelo', 'Marcelo', 'BRA', 'LV', 'legend', 88),
+  p('lizarazu', 'Bixente Lizarazu', 'FRA', 'LV', 'legend', 87),
+  p('acole', 'Ashley Cole', 'ENG', 'LV', 'legend', 87),
+  p('zambrotta', 'Gianluca Zambrotta', 'ITA', 'LV', 'legend', 87),
+  p('calberto', 'Carlos Alberto', 'BRA', 'RV', 'legend', 91),
+  p('thuram', 'Lilian Thuram', 'FRA', 'RV', 'legend', 90),
+  p('bergomi', 'Giuseppe Bergomi', 'ITA', 'RV', 'legend', 88),
+  p('gneville', 'Gary Neville', 'ENG', 'RV', 'legend', 86),
+  p('cannavaro', 'Fabio Cannavaro', 'ITA', 'IV', 'legend', 91),
+  p('scirea', 'Gaetano Scirea', 'ITA', 'IV', 'legend', 91),
+  p('desailly', 'Marcel Desailly', 'FRA', 'IV', 'legend', 90),
+  p('sammer', 'Matthias Sammer', 'GER', 'IV', 'legend', 90),
+  p('ferdinand', 'Rio Ferdinand', 'ENG', 'IV', 'legend', 89),
+  p('koeman', 'Ronald Koeman', 'NED', 'IV', 'legend', 89),
+  p('vidic', 'Nemanja Vidić', 'SRB', 'IV', 'legend', 88),
+  p('kohler', 'Jürgen Kohler', 'GER', 'IV', 'legend', 88),
+  p('hierro', 'Fernando Hierro', 'ESP', 'IV', 'legend', 88),
+  p('blanc', 'Laurent Blanc', 'FRA', 'IV', 'legend', 88),
+  p('rijkaard', 'Frank Rijkaard', 'NED', 'ZDM', 'legend', 91),
+  p('keane', 'Roy Keane', 'IRL', 'ZDM', 'legend', 89),
+  p('busquets', 'Sergio Busquets', 'ESP', 'ZDM', 'legend', 89),
+  p('xalonso', 'Xabi Alonso', 'ESP', 'ZDM', 'legend', 89),
+  p('makelele', 'Claude Makélélé', 'FRA', 'ZDM', 'legend', 88),
+  p('gattuso', 'Gennaro Gattuso', 'ITA', 'ZDM', 'legend', 87),
+  p('socrates', 'Sócrates', 'BRA', 'ZM', 'legend', 91),
+  p('kroos', 'Toni Kroos', 'GER', 'ZM', 'legend', 90),
+  p('scholes', 'Paul Scholes', 'ENG', 'ZM', 'legend', 89),
+  p('netzer', 'Günter Netzer', 'GER', 'ZM', 'legend', 89),
+  p('effenberg', 'Stefan Effenberg', 'GER', 'ZM', 'legend', 88),
+  p('overath', 'Wolfgang Overath', 'GER', 'ZM', 'legend', 88),
+  p('zico', 'Zico', 'BRA', 'ZOM', 'legend', 93),
+  p('laudrup', 'Michael Laudrup', 'DEN', 'ZOM', 'legend', 91),
+  p('hagi', 'Gheorghe Hagi', 'ROU', 'ZOM', 'legend', 89),
+  p('ruicosta', 'Rui Costa', 'POR', 'ZOM', 'legend', 88),
+  p('sneijder', 'Wesley Sneijder', 'NED', 'ZOM', 'legend', 88),
+  p('ozil', 'Mesut Özil', 'GER', 'ZOM', 'legend', 88),
+  p('deco', 'Deco', 'POR', 'ZOM', 'legend', 87),
+  p('overmars', 'Marc Overmars', 'NED', 'LM', 'legend', 88),
+  p('littbarski', 'Pierre Littbarski', 'GER', 'RM', 'legend', 88),
+  p('hassler', 'Thomas Häßler', 'GER', 'RM', 'legend', 88),
+  p('stoichkov', 'Hristo Stoitschkow', 'BUL', 'LF', 'legend', 91),
+  p('ribery', 'Franck Ribéry', 'FRA', 'LF', 'legend', 90),
+  p('hazard', 'Eden Hazard', 'BEL', 'LF', 'legend', 90),
+  p('robben', 'Arjen Robben', 'NED', 'RF', 'legend', 91),
+  p('jairzinho', 'Jairzinho', 'BRA', 'RF', 'legend', 91),
+  p('bale', 'Gareth Bale', 'WAL', 'RF', 'legend', 89),
+  p('romario', 'Romário', 'BRA', 'ST', 'legend', 93),
+  p('batistuta', 'Gabriel Batistuta', 'ARG', 'ST', 'legend', 91),
+  p('ibra', 'Zlatan Ibrahimović', 'SWE', 'ST', 'legend', 91),
+  p('weah', 'George Weah', 'LBR', 'ST', 'legend', 91),
+  p('shearer', 'Alan Shearer', 'ENG', 'ST', 'legend', 90),
+  p('vannistelrooy', 'Ruud van Nistelrooy', 'NED', 'ST', 'legend', 90),
+  p('aguero', 'Sergio Agüero', 'ARG', 'ST', 'legend', 90),
+  p('seeler', 'Uwe Seeler', 'GER', 'ST', 'legend', 90),
+  p('klinsmann', 'Jürgen Klinsmann', 'GER', 'ST', 'legend', 89),
+  p('villa', 'David Villa', 'ESP', 'ST', 'legend', 89),
+  p('lineker', 'Gary Lineker', 'ENG', 'ST', 'legend', 89),
+  p('voller', 'Rudi Völler', 'GER', 'ST', 'legend', 88),
+  p('suker', 'Davor Šuker', 'CRO', 'ST', 'legend', 88),
+  p('torres', 'Fernando Torres', 'ESP', 'ST', 'legend', 87),
 ];
 
 export const PLAYER_BY_ID: ReadonlyMap<string, Player> = new Map(PLAYERS.map((x) => [x.id, x]));
+/** Alle realen Personen (jede genau einmal, unabhängig von der Zahl ihrer Karten). */
+export const PERSON_IDS: readonly string[] = [...new Set(PLAYERS.map((x) => x.person))];
 
 // ---- Sechs Werte, deterministisch aus Position + Bewertung abgeleitet ----
 export interface StatLine { readonly label: string; readonly value: number }
@@ -229,10 +361,14 @@ const SHORT_OVERRIDES: Readonly<Record<string, string>> = {
   vinicius: 'Vinícius', neymar: 'Neymar', son: 'Son', r9: 'Ronaldo R9', cr7: 'C. Ronaldo', rcarlos: 'R. Carlos',
   xavi: 'Xavi', alisson: 'Alisson', taa: 'Trent', gerdmuller: 'G. Müller', muller: 'T. Müller', bruno: 'B. Fernandes',
   lautaro: 'Lautaro', simons: 'X. Simons', yashin: 'Jaschin', shevchenko: 'Schewa', schweini: 'Schweini',
+  kimminjae: 'Kim', emartinez: 'E. Martínez', nwilliams: 'N. Williams', calberto: 'C. Alberto', ruicosta: 'Rui Costa',
+  vandersar: 'van der Sar', macallister: 'Mac Allister', gabriel: 'Gabriel', jalvarez: 'J. Álvarez', acole: 'A. Cole',
+  gneville: 'G. Neville', xalonso: 'Xabi Alonso', kvara: 'Kvara', stoichkov: 'Stoitschkow', ronaldinho: 'Ronaldinho',
+  ibra: 'Ibrahimović', theo: 'Theo', nmendes: 'N. Mendes', kdb: 'De Bruyne',
 };
 const PARTICLES = new Set(['van', 'de', 'ter', 'del', 'di', 'De', 'Di', 'Del']);
 export const shortName = (pl: Player): string => {
-  const override = SHORT_OVERRIDES[pl.id];
+  const override = SHORT_OVERRIDES[pl.person];
   if (override) return override;
   const parts = pl.name.split(/\s+/).filter(Boolean);
   if (parts.length <= 1) return pl.name;

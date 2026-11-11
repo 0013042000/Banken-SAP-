@@ -209,7 +209,7 @@ describe('Gespeicherte Daten validieren', () => {
   });
 
   it('ungültige Formation fällt auf 4-3-3 zurück, gültige bleibt erhalten', () => {
-    expect(sanitizeTeam({ formation: '3-5-2', lineup: [] }, owned).formation).toBe('4-3-3');
+    expect(sanitizeTeam({ formation: '9-9-9', lineup: [] }, owned).formation).toBe('4-3-3');
     expect(sanitizeTeam({ formation: '4-4-2', lineup: [] }, owned).formation).toBe('4-4-2');
   });
 

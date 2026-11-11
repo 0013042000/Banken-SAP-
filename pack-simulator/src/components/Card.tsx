@@ -25,11 +25,11 @@ export const Silhouette = (): ReactElement => (
 /** Kompaktes Porträt (oder Initialen) für Spielfeld, Listen und Dialoge. */
 export const Portrait = ({ player, className = '' }: { readonly player: Player; readonly className?: string }): ReactElement => {
   const [failed, setFailed] = useState(false);
-  const show = HAS_PORTRAIT.has(player.id) && !failed;
+  const show = HAS_PORTRAIT.has(player.person) && !failed;
   return (
     <span className={`portrait portrait-${player.cat} ${className}`} aria-hidden="true">
       {show
-        ? <img src={portraitUrl(player.id)} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setFailed(true)} />
+        ? <img src={portraitUrl(player.person)} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setFailed(true)} />
         : <span className="portrait-initials">{initials(player.name)}</span>}
     </span>
   );
@@ -39,7 +39,7 @@ export const Card = ({ player, size = 'md', highlight = false, count }: Props): 
   const f = FLAGS[player.nation] ?? { flag: '🏳️', name: player.nation };
   const stats = statsFor(player);
   const [imgFailed, setImgFailed] = useState(false);
-  const showImg = HAS_PORTRAIT.has(player.id) && !imgFailed;
+  const showImg = HAS_PORTRAIT.has(player.person) && !imgFailed;
   return (
     <div className={`card card-${player.cat} card-${size}${highlight ? ' card-highlight' : ''}`}>
       <div className="card-top">
@@ -49,7 +49,7 @@ export const Card = ({ player, size = 'md', highlight = false, count }: Props): 
       </div>
       <div className={`card-figure${showImg ? ' has-img' : ''}`}>
         {showImg ? (
-          <img className="card-img" src={portraitUrl(player.id)} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setImgFailed(true)} />
+          <img className="card-img" src={portraitUrl(player.person)} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setImgFailed(true)} />
         ) : (
           <>
             <Silhouette />
@@ -58,7 +58,7 @@ export const Card = ({ player, size = 'md', highlight = false, count }: Props): 
         )}
       </div>
       <div className="card-name">{player.name}</div>
-      <div className="card-cat">{CAT_LABEL[player.cat]}</div>
+      <div className="card-cat">{player.version ? `${player.version} · Sonderkarte` : CAT_LABEL[player.cat]}</div>
       <div className="card-stats">
         {stats.map((s) => (
           <div key={s.label} className="stat"><span className="stat-v">{s.value}</span><span className="stat-l">{s.label}</span></div>
