@@ -344,6 +344,19 @@ export const sanitizeTeamBook = (rawBook: unknown, rawLegacyTeam: unknown, owned
 };
 
 export const teamOf = (book: TeamBook, owner: TeamOwner): Team => book.teams[owner] ?? book.teams.semon;
+
+/**
+ * Entfernt nicht mehr besessene Spieler aus allen Mannschaften (z. B. nach dem Zurücksetzen der Sammlung).
+ * Namen bleiben wie eingegeben. Liefert dasselbe Objekt zurück, wenn sich nichts ändert.
+ */
+export const pruneBook = (book: TeamBook, owned: ReadonlySet<string>): TeamBook => {
+  const prune = (t: Team): Team => { const clean = { ...sanitizeTeam(t, owned, t.name), name: t.name }; return sameTeam(clean, t) ? t : clean; };
+  const semon = prune(book.teams.semon);
+  const ariel = prune(book.teams.ariel);
+  const bestand = book.teams.bestand ? prune(book.teams.bestand) : undefined;
+  if (semon === book.teams.semon && ariel === book.teams.ariel && bestand === book.teams.bestand) return book;
+  return { ...book, teams: { semon, ariel, ...(bestand ? { bestand } : {}) } };
+};
 export const ownersOf = (book: TeamBook): TeamOwner[] => (book.teams.bestand ? ['semon', 'ariel', 'bestand'] : ['semon', 'ariel']);
 export const withTeam = (book: TeamBook, owner: TeamOwner, team: Team): TeamBook =>
   ({ ...book, teams: { ...book.teams, [owner]: team } });

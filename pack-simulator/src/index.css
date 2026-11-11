@@ -399,3 +399,27 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3
 .btn-team.in-team { background: rgba(60,220,120,0.14); border-color: rgba(60,220,120,0.5); color: #6fe89f; }
 .storage-warning { margin: 0 auto 12px; max-width: 560px; padding: 10px 12px; border-radius: 12px; font-size: 0.85rem; text-align: center; color: #ffb454; background: rgba(255,159,28,0.1); border: 1px solid rgba(255,159,28,0.45); }
 @media (max-width: 380px) { .tabbar button { font-size: 0.72rem; } .card-sm { width: 132px; } }
+
+/* ===================== Navigation, Umschalter, Einstellungen ===================== */
+.tabbar button { font-size: 0.72rem; padding: 0 2px; }
+.tabbar button span { font-size: 1.3rem; }
+@media (max-width: 380px) { .tabbar button { font-size: 0.66rem; } }
+.packs-hub { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.packs-controls { width: 100%; max-width: 640px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.seg { display: flex; width: 100%; max-width: 420px; padding: 4px; gap: 4px; border-radius: 14px; background: rgba(255,255,255,0.06); border: 1px solid var(--line); }
+.seg-btn { flex: 1; min-width: 0; min-height: 44px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); font-weight: 800; font-size: 0.92rem; }
+.seg-btn.active { background: linear-gradient(135deg, var(--gold), #ff9f1c); color: #1a1200; }
+.toggle.luck { min-height: 44px; }
+.switch { flex: none; min-width: 72px; min-height: 44px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-weight: 800; }
+.switch.on { background: linear-gradient(135deg, #3ddc84, #1fa55b); color: #062414; border-color: transparent; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.set-block { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.set-block .filters { justify-content: flex-start; }
+.set-label { font-weight: 800; font-size: 1rem; }
+.set-hint { margin: 0; font-size: 0.82rem; color: var(--muted); line-height: 1.4; }
+.build-id { color: var(--gold); letter-spacing: 0.5px; }
+.set-info .btn { align-self: flex-start; }
+.formation-toggle { width: 100%; justify-content: flex-start; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.formation-toggle::-webkit-scrollbar { display: none; }
+.formation-toggle .btn { flex: none; white-space: nowrap; padding: 0 13px; font-size: 0.92rem; }
+@media (min-width: 420px) { .formation-toggle { justify-content: center; } }

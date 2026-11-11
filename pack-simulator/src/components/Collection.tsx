@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactElement } from 'react';
 import { PLAYER_BY_ID, shortName, type Player } from '../data/players';
 import type { Collection as Coll } from '../game/storage';
 import { sfx } from '../game/sound';
-import { fits, FORMATIONS, placePlayer, ROLE_LABEL, slotIndexOf, type Team } from '../game/team';
+import { fits, FORMATIONS, placePlayer, ROLE_LABEL, slotIndexOfPerson, type Team } from '../game/team';
 import { Card } from './Card';
 import { Modal } from './Modal';
 import { SlotPicker } from './TeamParts';
@@ -10,13 +10,15 @@ import { SlotPicker } from './TeamParts';
 interface Props {
   readonly collection: Coll;
   readonly team: Team;
+  /** Name des Profils, dessen Mannschaft gerade bearbeitet wird. */
+  readonly teamLabel: string;
   readonly onTeamChange: (team: Team) => void;
   readonly onGoTeam: () => void;
   readonly onReset: () => void;
 }
 type Filter = 'alle' | 'stars' | 'legenden';
 
-export const Collection = ({ collection, team, onTeamChange, onGoTeam, onReset }: Props): ReactElement => {
+export const Collection = ({ collection, team, teamLabel, onTeamChange, onGoTeam, onReset }: Props): ReactElement => {
   const [filter, setFilter] = useState<Filter>('alle');
   const [q, setQ] = useState('');
   const [confirm, setConfirm] = useState(false);
@@ -46,7 +48,8 @@ export const Collection = ({ collection, team, onTeamChange, onGoTeam, onReset }
   return (
     <section className="mode">
       <h2 className="opening-title">Sammlung</h2>
-      <p className="opening-sub">{entries.length} verschiedene Spieler · {total} Karten gezogen</p>
+      <p className="opening-sub">{entries.length} verschiedene Karten · {total} Karten gezogen</p>
+      <p className="opening-hint">„Ins Team“ stellt in die Mannschaft von {teamLabel}.</p>
       <div className="filters">
         {(['alle', 'stars', 'legenden'] as const).map((f) => (
           <button key={f} type="button" className={`btn btn-chip${filter === f ? ' active' : ''}`} onClick={() => { sfx.tap(); setFilter(f); }}>
@@ -66,11 +69,11 @@ export const Collection = ({ collection, team, onTeamChange, onGoTeam, onReset }
       ) : (
         <div className="collection-grid">
           {shown.map((e) => {
-            const at = slotIndexOf(team, e.p.id);
+            const at = slotIndexOfPerson(team, e.p.person);
             return (
               <div key={e.p.id} className="coll-item">
                 <Card player={e.p} size="sm" count={e.n} />
-                <button type="button" className={`btn btn-team${at >= 0 ? ' in-team' : ''}`} aria-label={`${e.p.name} ins Team`}
+                <button type="button" className={`btn btn-team${at >= 0 ? ' in-team' : ''}`} aria-label={`${e.p.name}${e.p.version ? ` ${e.p.version}` : ''} ins Team`}
                   onClick={() => { sfx.tap(); setPicking(e.p); }}>
                   {at >= 0 ? `Im Team · ${slots[at]!.role}` : 'Ins Team'}
                 </button>
@@ -86,7 +89,7 @@ export const Collection = ({ collection, team, onTeamChange, onGoTeam, onReset }
       {picking && <SlotPicker player={picking} team={team} lookup={(id) => PLAYER_BY_ID.get(id)} onPlace={placeInTeam} onClose={() => setPicking(null)} />}
       {confirm && (
         <Modal title="Sammlung zurücksetzen?" onClose={() => setConfirm(false)}>
-          <p className="modal-text">Wirklich alle {total} Karten löschen? <strong>Dein Team wird dabei ebenfalls geleert</strong>, weil nur gezogene Spieler aufgestellt werden können.</p>
+          <p className="modal-text">Wirklich alle {total} Karten löschen? <strong>Alle Mannschaften werden dabei ebenfalls geleert</strong>, weil nur gezogene Spieler aufgestellt werden können.</p>
           <div className="modal-actions">
             <button type="button" className="btn btn-danger" onClick={() => { onReset(); setConfirm(false); setNotice(null); }}>Ja, löschen</button>
             <button type="button" className="btn btn-ghost" onClick={() => setConfirm(false)}>Abbrechen</button>

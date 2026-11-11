@@ -1,6 +1,6 @@
 import { useState, type ReactElement } from 'react';
 import { shortName, type Player } from '../data/players';
-import { canPlace, fits, FORMATIONS, ROLE_LABEL, slotIndexOf, type SlotRole, type Team } from '../game/team';
+import { canPlace, fits, FORMATIONS, ROLE_LABEL, slotIndexOfPerson, type SlotRole, type Team } from '../game/team';
 import { Portrait } from './Card';
 import { Modal } from './Modal';
 
@@ -32,7 +32,7 @@ interface PickerProps {
 export const SlotPicker = ({ player, team, lookup, onPlace, onClose }: PickerProps): ReactElement => {
   const [target, setTarget] = useState<number | null>(null);
   const slots = FORMATIONS[team.formation];
-  const currentIndex = slotIndexOf(team, player.id);
+  const currentIndex = slotIndexOfPerson(team, player.person);
   const order = slots.map((slot, i) => ({ slot, i })).filter(({ slot }) => canPlace(player, slot.role))
     .sort((a, b) => Number(fits(player, b.slot.role)) - Number(fits(player, a.slot.role)) || a.i - b.i);
 

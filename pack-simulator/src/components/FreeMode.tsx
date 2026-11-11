@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Player } from '../data/players';
 import type { Motion } from '../game/motion';
 import { drawPack, PACK_ORDER, PACKS, PREVIEW_KINDS, previewPack, type PackType, type PreviewKind } from '../game/packs';
@@ -12,14 +12,18 @@ interface Props {
   readonly motion: Motion;
   readonly onCollect: (cards: readonly Player[]) => void;
   readonly onTeam: () => void;
+  /** Meldet, ob gerade ein Pack geöffnet ist. */
+  readonly onActive?: (active: boolean) => void;
 }
 
-export const FreeMode = ({ dreamLuck, motion, onCollect, onTeam }: Props): ReactElement => {
+export const FreeMode = ({ dreamLuck, motion, onCollect, onTeam, onActive }: Props): ReactElement => {
   const [packType, setPackType] = useState<PackType>('gold');
   const [cards, setCards] = useState<readonly Player[] | null>(null);
   const [isDemo, setIsDemo] = useState(false);
   const [choosing, setChoosing] = useState(false);
   const busy = useRef(false);
+  const isOpen = cards !== null;
+  useEffect(() => { onActive?.(isOpen); return () => onActive?.(false); }, [isOpen, onActive]);
 
   const open = (): void => {
     if (busy.current || cards) return; // Doppelklick-Schutz

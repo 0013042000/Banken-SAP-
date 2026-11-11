@@ -21,7 +21,13 @@ interface DuelState {
   readonly stage: 'open' | 'compare' | 'finished';
 }
 
-interface Props { readonly dreamLuck: boolean; readonly motion: Motion; readonly onTeam: () => void }
+interface Props {
+  readonly dreamLuck: boolean;
+  readonly motion: Motion;
+  readonly onTeam: () => void;
+  /** Meldet, ob gerade ein Pack geöffnet ist. */
+  readonly onActive?: (active: boolean) => void;
+}
 
 const fresh = (packType: PackType): DuelState => ({
   packType, round: 0, turn: 0, stage: 'open',
@@ -38,7 +44,7 @@ const saveDuel = (d: DuelState | null): void => {
   try { if (d) localStorage.setItem(DUEL_KEY, JSON.stringify(d)); else localStorage.removeItem(DUEL_KEY); } catch { /* ignore */ }
 };
 
-export const DuelMode = ({ dreamLuck, motion, onTeam }: Props): ReactElement => {
+export const DuelMode = ({ dreamLuck, motion, onTeam, onActive }: Props): ReactElement => {
   const [duel, setDuel] = useState<DuelState | null>(() => loadDuel());
   // Nach einem Neuladen mitten im Zug: bereits gezogenes Pack direkt wieder anzeigen
   const [cards, setCards] = useState<readonly Player[] | null>(() => {
@@ -49,6 +55,8 @@ export const DuelMode = ({ dreamLuck, motion, onTeam }: Props): ReactElement => 
   const [restored, setRestored] = useState(cards !== null);
 
   useEffect(() => { saveDuel(duel); }, [duel]);
+  const isOpen = cards !== null;
+  useEffect(() => { onActive?.(isOpen); return () => onActive?.(false); }, [isOpen, onActive]);
 
   if (!duel) {
     return (

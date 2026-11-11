@@ -3,8 +3,9 @@ import { PLAYER_BY_ID, shortName, type Player } from '../data/players';
 import { sfx } from '../game/sound';
 import type { Collection } from '../game/storage';
 import {
-  autoLineup, byRating, canPlace, changeFormation, clearLineup, filledCount, fits, FORMATION_IDS, FORMATIONS, normalizeName,
-  placePlayer, removeAt, ROLE_LABEL, slotIndexOf, TEAM_NAME_MAX, TEAM_SIZE, teamRating, type FormationId, type SlotDef, type Team,
+  autoLineup, byRating, canPlace, changeFormation, clearLineup, DEFAULT_TEAM_NAMES, filledCount, fits, FORMATION_IDS, FORMATIONS, normalizeName,
+  OWNER_LABEL, placePlayer, removeAt, ROLE_LABEL, slotIndexOfPerson, TEAM_NAME_MAX, TEAM_SIZE, teamRating,
+  type FormationId, type SlotDef, type Team, type TeamOwner,
 } from '../game/team';
 import { Portrait } from './Card';
 import { Modal } from './Modal';
@@ -12,6 +13,10 @@ import { FitTag, PlayerRow } from './TeamParts';
 
 interface Props {
   readonly team: Team;
+  /** Wem die gezeigte Mannschaft gehört, und zwischen welchen gewechselt werden kann. */
+  readonly owner: TeamOwner;
+  readonly owners: readonly TeamOwner[];
+  readonly onOwner: (owner: TeamOwner) => void;
   readonly collection: Collection;
   readonly onChange: (team: Team) => void;
   readonly onGoPacks: () => void;
@@ -19,7 +24,7 @@ interface Props {
 
 const roles = (slots: readonly SlotDef[]): string => [...new Set(slots.map((s) => ROLE_LABEL[s.role]))].join(', ');
 
-export const TeamView = ({ team, collection, onChange, onGoPacks }: Props): ReactElement => {
+export const TeamView = ({ team, owner, owners, onOwner, collection, onChange, onGoPacks }: Props): ReactElement => {
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [query, setQuery] = useState('');
   const [onlyFit, setOnlyFit] = useState(true);
@@ -63,6 +68,7 @@ export const TeamView = ({ team, collection, onChange, onGoPacks }: Props): Reac
     const role = slots[i]!.role;
     const occupantId = team.lineup[i];
     setOnlyFit(owned.some((p) => p.id !== occupantId && fits(p, role)));
+    setNotice(null);
     setQuery('');
     setActiveSlot(i);
   };
@@ -80,7 +86,7 @@ export const TeamView = ({ team, collection, onChange, onGoPacks }: Props): Reac
     const occupant = team.lineup[activeSlot] ? PLAYER_BY_ID.get(team.lineup[activeSlot]!) : undefined;
     const q = query.trim().toLowerCase();
     const candidates = owned
-      .filter((p) => p.id !== occupant?.id && canPlace(p, slot.role))
+      .filter((p) => p.person !== occupant?.person && canPlace(p, slot.role))
       .filter((p) => (!onlyFit || fits(p, slot.role)) && p.name.toLowerCase().includes(q))
       .sort((a, b) => Number(fits(b, slot.role)) - Number(fits(a, slot.role)) || byRating(a, b));
     return (
@@ -108,7 +114,7 @@ export const TeamView = ({ team, collection, onChange, onGoPacks }: Props): Reac
             ) : (
               <div className="pick-list">
                 {candidates.map((p) => {
-                  const at = slotIndexOf(team, p.id);
+                  const at = slotIndexOfPerson(team, p.person);
                   const action = at >= 0 ? (occupant ? 'Tauschen' : 'Verschieben') : occupant ? 'Ersetzen' : 'Einsetzen';
                   return (
                     <PlayerRow key={p.id} player={p}
@@ -128,10 +134,18 @@ export const TeamView = ({ team, collection, onChange, onGoPacks }: Props): Reac
   return (
     <section className="mode">
       <div className="team-head">
+        <div className="seg" role="tablist" aria-label="Mannschaft von">
+          {owners.map((o) => (
+            <button key={o} type="button" role="tab" aria-selected={owner === o} className={`seg-btn${owner === o ? ' active' : ''}`}
+              onClick={() => { sfx.tap(); setNotice(null); onOwner(o); }}>
+              {OWNER_LABEL[o]}
+            </button>
+          ))}
+        </div>
         <label className="sr-only" htmlFor="team-name">Teamname</label>
         <input id="team-name" className="team-name" type="text" maxLength={TEAM_NAME_MAX} value={team.name} autoComplete="off" spellCheck={false}
           onChange={(e) => onChange({ ...team, name: e.target.value.slice(0, TEAM_NAME_MAX) })}
-          onBlur={(e) => onChange({ ...team, name: normalizeName(e.target.value) })}
+          onBlur={(e) => onChange({ ...team, name: normalizeName(e.target.value, DEFAULT_TEAM_NAMES[owner]) })}
           onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} />
         <div className="team-stats">
           <div className="team-stat"><b>{rating.rating ?? '—'}</b><span>{rating.count > 0 && rating.provisional ? 'vorläufige Wertung' : 'Teamwertung'}</span></div>

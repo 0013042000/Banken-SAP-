@@ -47,5 +47,5 @@ export default function WalkoutCanvas({ spec, phase, phaseDur, onFail }: Props):
     director.setPhase(phase, phaseDur);
   }, [spec, phase, phaseDur]);
 
-  return <canvas ref={canvasRef} className="st-canvas" aria-hidden="true" />;
+  return <canvas ref={canvasRef} className="st-canvas" data-player={spec.player.id} aria-hidden="true" />;
 }
