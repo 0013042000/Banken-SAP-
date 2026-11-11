@@ -1,0 +1,133 @@
+/* ===================== Fußballmodus („Spielen“) ===================== */
+/* Nutzt die Farbvariablen und Knopfklassen aus index.css; eigene Klassen beginnen mit fb-. */
+
+.fb-title { margin: 4px 0 0; font-size: 1.4rem; text-align: center; }
+.fb-sub { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.45; }
+.fb-sub b { color: var(--text); }
+.fb-hint { margin: 0; color: #ffb454; font-size: 0.88rem; line-height: 1.4; }
+.fb-alert { margin: 0; width: 100%; max-width: 640px; padding: 12px 14px; border-radius: 14px; background: rgba(255,63,100,0.12); border: 1px solid rgba(255,63,100,0.45); color: #ff9db1; line-height: 1.4; }
+.fb-notice { margin: 0; min-height: 1.2em; font-size: 0.88rem; color: var(--neon); }
+.fb-notice:empty { display: none; }
+.fb-keys { margin: 0; font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+
+.fb-modes { display: grid; grid-template-columns: 1fr; gap: 12px; width: 100%; max-width: 640px; }
+.fb-mode { min-height: 124px; border-radius: 18px; border: 2px solid var(--line); background: var(--panel); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 16px 12px; text-align: center; }
+.fb-mode:active { transform: scale(0.98); }
+.fb-mode-ai { border-color: rgba(245,197,66,0.7); box-shadow: 0 0 18px rgba(245,197,66,0.22); }
+.fb-mode-online { border-color: rgba(56,242,255,0.6); box-shadow: 0 0 18px rgba(56,242,255,0.18); }
+.fb-mode-icon { font-size: 2rem; line-height: 1; }
+.fb-mode-name { font-size: 1.15rem; font-weight: 800; }
+.fb-mode-sub { font-size: 0.82rem; color: var(--muted); }
+@media (min-width: 600px) { .fb-modes { grid-template-columns: 1fr 1fr; } }
+
+.fb-panel { width: 100%; max-width: 640px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.fb-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fb-panel-title { margin: 0; font-size: 1.05rem; }
+.fb-group { margin: 6px 0 0; font-size: 0.78rem; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+.fb-group span { color: var(--gold); }
+.fb-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fb-actions { width: 100%; max-width: 640px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.fb-empty { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 12px; background: rgba(56,242,255,0.07); border: 1px dashed rgba(56,242,255,0.4); }
+.fb-empty p { margin: 0; font-size: 0.9rem; line-height: 1.45; }
+
+.fb-squads { display: grid; gap: 8px; }
+.fb-squad { min-height: 60px; padding: 8px 12px; border-radius: 12px; border: 2px solid var(--line); background: rgba(255,255,255,0.03); display: flex; flex-direction: column; justify-content: center; gap: 2px; text-align: left; min-width: 0; }
+.fb-squad.is-picked { border-color: var(--gold); box-shadow: 0 0 14px rgba(245,197,66,0.3); }
+.fb-squad:disabled { opacity: 0.55; }
+.fb-squad-name { font-weight: 800; overflow-wrap: anywhere; }
+.fb-squad-meta { font-size: 0.78rem; color: var(--muted); }
+.fb-squad-warn { font-size: 0.78rem; color: #ffb454; }
+
+.fb-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 8px; }
+.fb-pick { min-height: 58px; padding: 6px 8px; border-radius: 12px; border: 2px solid var(--line); background: rgba(255,255,255,0.03); display: grid; grid-template-columns: 42px 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center; text-align: left; min-width: 0; }
+.fb-pick.is-picked { border-color: var(--neon); background: rgba(56,242,255,0.12); box-shadow: 0 0 12px rgba(56,242,255,0.28); }
+.fb-pick-portrait { grid-row: 1 / span 2; width: 42px; }
+.fb-pick-name { font-weight: 700; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: end; }
+.fb-pick-meta { font-size: 0.75rem; color: var(--muted); align-self: start; }
+
+/* Online-Raum */
+.fb-badge { font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.08); color: var(--muted); }
+.fb-badge-connected { color: #7dffa8; }
+.fb-badge-reconnecting, .fb-badge-connecting { color: #ffb454; }
+.fb-badge-lost, .fb-badge-unavailable { color: #ff6b8a; }
+.fb-room { align-items: center; text-align: center; }
+.fb-code { margin: 0; font-size: 2.6rem; font-weight: 900; letter-spacing: 0.3em; padding-left: 0.3em; color: var(--gold); text-shadow: 0 0 16px rgba(245,197,66,0.45); font-variant-numeric: tabular-nums; }
+.fb-link { width: 100%; min-height: 44px; border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); color: var(--muted); padding: 0 10px; font-size: 0.8rem; text-overflow: ellipsis; }
+.fb-join { width: 100%; max-width: 420px; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+.fb-join-label { grid-column: 1 / -1; font-size: 0.85rem; color: var(--muted); font-weight: 700; }
+.fb-code-input { min-width: 0; min-height: 50px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--text); padding: 0 14px; font-size: 1.3rem; font-weight: 800; letter-spacing: 0.25em; text-transform: uppercase; }
+.fb-seats { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.fb-seat { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,0.04); border-left: 4px solid currentColor; }
+.fb-seat span { color: var(--text); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-seat em { grid-column: 1 / -1; font-style: normal; font-size: 0.8rem; color: var(--muted); }
+
+/* Endstand */
+.fb-final { width: 100%; max-width: 640px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.fb-final-team { font-weight: 800; overflow-wrap: anywhere; }
+.fb-final .fb-team-mine { text-align: right; }
+.fb-final-score { font-size: 2.8rem; font-weight: 900; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fb-scorers { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.fb-scorers li { display: grid; grid-template-columns: 3em 1fr auto; gap: 8px; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,0.04); font-size: 0.9rem; }
+.fb-scorers li span:last-child { font-size: 0.75rem; opacity: 0.8; max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-team-mine { color: #6fd6ff; }
+.fb-team-theirs { color: #ff7d9c; }
+
+/* ===================== Spielbildschirm ===================== */
+.fb-match { position: fixed; inset: 0; z-index: 20; background: #050912; color: var(--text); display: grid; grid-template-columns: 100%; grid-template-rows: auto minmax(0, 1fr); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; overflow: hidden; }
+.fb-hud { grid-row: 1; display: flex; align-items: center; gap: 8px; min-height: 52px; padding: calc(4px + var(--sat)) max(8px, env(safe-area-inset-right, 0px)) 4px max(8px, env(safe-area-inset-left, 0px)); background: rgba(7,11,22,0.94); border-bottom: 1px solid var(--line); z-index: 4; min-width: 0; }
+.fb-hud-btn { flex: none; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); font-size: 1.05rem; padding: 0; }
+.fb-score { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.fb-team { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; font-size: 0.82rem; }
+.fb-score .fb-team-mine { text-align: right; }
+.fb-goals { font-size: 1.35rem; font-weight: 900; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fb-clock { flex: none; min-width: 3.3em; text-align: center; padding: 5px 8px; border-radius: 8px; background: rgba(255,255,255,0.09); font-weight: 800; font-variant-numeric: tabular-nums; }
+.fb-conn { flex: none; font-size: 0.72rem; font-weight: 700; color: #7dffa8; white-space: nowrap; }
+
+.fb-stage { grid-row: 2; grid-column: 1; position: relative; min-height: 0; overflow: hidden; }
+.fb-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.fb-banner { position: absolute; left: 50%; top: 26%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; text-align: center; text-shadow: 0 3px 14px rgba(0,0,0,0.85); max-width: 92%; }
+.fb-banner strong { font-size: clamp(2rem, 9vw, 3.6rem); font-weight: 900; line-height: 1; color: var(--gold); }
+.fb-banner span { font-size: 1rem; font-weight: 700; overflow-wrap: anywhere; }
+.fb-notice-box { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(88%, 420px); padding: 14px 16px; border-radius: 14px; background: rgba(7,11,22,0.92); border: 1px solid rgba(255,180,84,0.6); color: #ffd9a8; text-align: center; line-height: 1.4; z-index: 3; }
+.fb-rotate { position: absolute; left: 8px; right: 8px; bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 4px 4px 12px; border-radius: 12px; background: rgba(7,11,22,0.88); border: 1px solid var(--line); font-size: 0.85rem; font-weight: 700; z-index: 3; }
+.fb-rotate button { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); }
+
+/* Steuerung: im Querformat halbtransparent über dem Feld */
+.fb-controls { grid-row: 2; grid-column: 1; position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: stretch; pointer-events: none; min-height: 0; }
+.fb-stick-zone { position: relative; width: 46%; pointer-events: auto; touch-action: none; }
+.fb-stick-base { position: absolute; left: 96px; top: calc(100% - 96px); width: 108px; height: 108px; margin: -54px 0 0 -54px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.55); background: rgba(255,255,255,0.14); opacity: 0.7; pointer-events: none; z-index: 1; }
+.fb-stick-base.is-active { opacity: 0.95; }
+.fb-stick-knob { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px 0 0 -25px; border-radius: 50%; background: rgba(255,255,255,0.75); box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+.fb-stick-hint { position: absolute; left: 14px; bottom: calc(8px + var(--sab)); font-size: 0.72rem; font-weight: 700; color: rgba(255,255,255,0.6); pointer-events: none; }
+.fb-buttons { pointer-events: auto; align-self: flex-end; display: grid; grid-template-columns: auto auto; grid-template-areas: ". swap" "pass shoot"; gap: 10px; padding: 0 max(14px, env(safe-area-inset-right, 0px)) calc(14px + var(--sab)) 0; opacity: 0.82; }
+.fb-action { width: 78px; height: 78px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.55); background: rgba(13,22,48,0.55); color: #fff; font-weight: 800; font-size: 0.85rem; line-height: 1.1; padding: 4px; touch-action: none; }
+.fb-action.is-down { transform: scale(0.93); filter: brightness(1.5); }
+.fb-action-swap { grid-area: swap; border-color: rgba(255,125,156,0.85); background: rgba(255,63,164,0.3); }
+.fb-action-pass { grid-area: pass; border-color: rgba(56,242,255,0.85); background: rgba(56,242,255,0.3); align-self: end; }
+.fb-action-shoot { grid-area: shoot; width: 88px; height: 88px; border-color: rgba(245,197,66,0.9); background: rgba(245,197,66,0.38); font-size: 0.95rem; }
+
+/* Hochformat: Feld oben in voller Breite, Steuerung darunter */
+@media (orientation: portrait) {
+  .fb-match { grid-template-rows: auto auto minmax(0, 1fr); }
+  .fb-stage { aspect-ratio: 16 / 10.4; max-height: 56dvh; }
+  .fb-controls { grid-row: 3; background: linear-gradient(180deg, #0b1226, #050912); border-top: 1px solid var(--line); }
+  .fb-stick-zone { width: 50%; }
+  .fb-stick-base { left: 50%; top: 50%; }
+  .fb-buttons { align-self: center; padding-bottom: var(--sab); opacity: 1; }
+}
+
+/* Sehr niedrige Bildschirme im Querformat: etwas kleinere Knöpfe */
+@media (orientation: landscape) and (max-height: 380px) {
+  .fb-hud { min-height: 48px; }
+  .fb-action { width: 68px; height: 68px; font-size: 0.8rem; }
+  .fb-action-shoot { width: 78px; height: 78px; }
+  .fb-buttons { gap: 8px; padding-bottom: calc(8px + var(--sab)); }
+  .fb-stick-base { top: calc(100% - 80px); }
+}
+
+/* Maus und Tastatur: Joystick nur zeigen, wenn er benutzt wird */
+@media (hover: hover) and (pointer: fine) {
+  .fb-stick-base, .fb-stick-hint { visibility: hidden; }
+  .fb-stick-base.is-active { visibility: visible; }
+  .fb-buttons { opacity: 0.6; }
+}
