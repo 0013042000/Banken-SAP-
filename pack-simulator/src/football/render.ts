@@ -13,6 +13,14 @@ export interface RenderView {
   readonly myTeam: TeamId;
   /** Kurznamen der zehn Spieler in Spielerreihenfolge. */
   readonly names: readonly string[];
+  /** Haut- und Haarfarbe der zehn Spieler (stilisierte Avatare), damit man die eigenen Karten wiedererkennt. */
+  readonly looks?: readonly PlayerLook[];
+}
+
+export interface PlayerLook {
+  readonly skin: string;
+  readonly hair: string;
+  readonly bald: boolean;
 }
 
 export interface Renderer {
@@ -36,16 +44,27 @@ const STRIPES = 10;
 const LINE_WIDTH = 0.28;
 const SPOT_R = 0.5;
 const FULL_TURN = Math.PI + Math.PI;
-const PLAYER_DRAW = 1.25;
-const PLAYER_MIN_PX = 6.5;
+const PLAYER_DRAW = 1.45;
+const PLAYER_MIN_PX = 7.5;
 const BALL_DRAW = 1.35;
 const BALL_MIN_PX = 3.4;
 const BALL_LIFT = 0.7;
 const BALL_GROW = 0.12;
 const SHADOW_SHIFT = 0.35;
 const SHADOW_SQUASH = 0.55;
-const NOSE = 0.55;
-const NOSE_R = 0.32;
+// Figur von oben: Schultern quer zur Blickrichtung, Kopf darüber, Füße im Wechselschritt.
+const SHOULDER_LONG = 1.08;
+const SHOULDER_SHORT = 0.62;
+const HEAD_R = 0.56;
+const HEAD_SHIFT = 0.1;
+const HAIR_SHIFT = 0.18;
+const HAIR_R = 0.5;
+const FOOT_SIDE = 0.48;
+const FOOT_REACH = 0.62;
+const FOOT_R = 0.3;
+const STEP_RATE = 1.5;
+const DEFAULT_LOOK: PlayerLook = { skin: '#e9bf9d', hair: '#2b1d14', bald: false };
+const BOOT = '#10131c';
 const RING_GAP = 1.5;
 const RING_WIDTH = 2.5;
 const MARKER_RISE = 2.3;
@@ -71,7 +90,6 @@ const BALL_EDGE = '#10131c';
 const ACTIVE = '#f5c542';
 const NAME_OUTLINE_COLOR = 'rgba(4,8,18,0.85)';
 const OUTLINE = 'rgba(4,8,18,0.9)';
-const NOSE_COLOR = 'rgba(255,255,255,0.9)';
 
 interface Kit {
   readonly body: string;
@@ -183,15 +201,36 @@ export const createRenderer = (canvas: HTMLCanvasElement): Renderer => {
     ctx.beginPath();
     ctx.ellipse(at.x + radius * SHADOW_SHIFT, at.y + radius * SHADOW_SHIFT, radius, radius * SHADOW_SQUASH, 0, 0, FULL_TURN);
     ctx.fill();
+    const look = view.looks?.[index] ?? DEFAULT_LOOK;
+    const side = vec(-facing.y, facing.x);
+    // Füße: wechseln mit der zurückgelegten Strecke, stehen also still, wenn die Figur steht.
+    const swing = Math.sin((p.pos.x + p.pos.y) * STEP_RATE);
+    ctx.fillStyle = BOOT;
+    [1, -1].forEach((sign) => {
+      const reach = sign * swing * FOOT_REACH;
+      circle(vec(at.x + (side.x * sign * FOOT_SIDE + facing.x * reach) * radius, at.y + (side.y * sign * FOOT_SIDE + facing.y * reach) * radius), radius * FOOT_R);
+      ctx.fill();
+    });
+    // Schultern/Trikot
     ctx.fillStyle = isKeeper(index) ? kit.keeper : kit.body;
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = OUTLINE_WIDTH;
-    circle(at, radius);
+    ctx.beginPath();
+    ctx.ellipse(at.x, at.y, radius * SHOULDER_LONG, radius * SHOULDER_SHORT, Math.atan2(side.y, side.x), 0, FULL_TURN);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = NOSE_COLOR;
-    circle(vec(at.x + facing.x * radius * NOSE, at.y + facing.y * radius * NOSE), radius * NOSE_R);
+    // Kopf mit Haaren am Hinterkopf
+    const head = vec(at.x + facing.x * radius * HEAD_SHIFT, at.y + facing.y * radius * HEAD_SHIFT);
+    if (!look.bald) {
+      ctx.fillStyle = look.hair;
+      circle(vec(head.x - facing.x * radius * HAIR_SHIFT, head.y - facing.y * radius * HAIR_SHIFT), radius * (HEAD_R + HAIR_R * HAIR_SHIFT));
+      ctx.fill();
+    }
+    ctx.fillStyle = look.skin;
+    ctx.lineWidth = 1;
+    circle(vec(head.x + facing.x * radius * HAIR_SHIFT * HALF, head.y + facing.y * radius * HAIR_SHIFT * HALF), radius * HEAD_R * (look.bald ? 1 : 0.86));
     ctx.fill();
+    ctx.stroke();
     ctx.globalAlpha = 1;
     if (frame.controlled[view.myTeam] !== index) return;
     ctx.strokeStyle = ACTIVE;

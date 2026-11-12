@@ -3,7 +3,9 @@ import { createMatchAudio, type MatchAudio } from '../../football/audio';
 import { goalText, hudOf, sameHud, type Hud } from '../../football/hud';
 import { createInput } from '../../football/input';
 import type { MatchDriver } from '../../football/match';
-import { createRenderer, type RenderView } from '../../football/render';
+import { createRenderer, type PlayerLook, type RenderView } from '../../football/render';
+import { lookFor } from '../../data/looks';
+import { PLAYER_BY_ID } from '../../data/players';
 import { Phase, type SimEvent, type TeamInput } from '../../football/sim/index.ts';
 import { Modal } from '../Modal';
 
@@ -50,6 +52,15 @@ const lockPageScroll = (): (() => void) => {
 };
 
 /** Das eigentliche Spiel: Feld, Anzeige, Touch-Steuerung, Pause. Füllt den ganzen Bildschirm. */
+const NEUTRAL_LOOK: PlayerLook = { skin: '#e9bf9d', hair: '#2b1d14', bald: false };
+/** Haut- und Haarfarbe des stilisierten Avatars zu einer Karte. */
+const lookOfCard = (cardId: string): PlayerLook => {
+  const card = PLAYER_BY_ID.get(cardId);
+  if (!card) return NEUTRAL_LOOK;
+  const look = lookFor(card);
+  return { skin: look.skin, hair: look.hairColor, bald: look.hair === 'glatze' };
+};
+
 export const MatchScreen = ({ driver, muted, online, notice, statusLabel, onEnded, onQuit }: Props): ReactElement => {
   const rootRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -123,6 +134,7 @@ export const MatchScreen = ({ driver, muted, online, notice, statusLabel, onEnde
       flip,
       myTeam: meta.myTeam,
       names: [...meta.teams[0].players, ...meta.teams[1].players].map((p) => p.name),
+      looks: [...meta.teams[0].players, ...meta.teams[1].players].map((spec) => lookOfCard(spec.id)),
     };
     const renderer = createRenderer(canvas);
     const input = createInput({ stickZone, stickBase, stickKnob, pass, shoot, swap }, () => {
