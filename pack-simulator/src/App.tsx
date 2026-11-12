@@ -13,6 +13,7 @@ import {
 import { listDraftSquads } from './game/draft/store';
 import { Collection } from './components/Collection';
 import { DraftHub } from './components/draft/DraftHub';
+import { PlayHub } from './components/football/PlayHub';
 import { Credits } from './components/Credits';
 import { PacksHub, type PacksView } from './components/PacksHub';
 import { SettingsSheet } from './components/SettingsSheet';
@@ -99,7 +100,9 @@ export default function App(): ReactElement {
           <DraftHub reducedMotion={motion === 'reduced'} muted={settings.muted} onChanged={() => setDraftSquads(listDraftSquads())}
             onPlaySquad={(id) => { setPreselectSquad(id); go('spielen'); }} />
         )}
-        {tab === 'spielen' && <p className="empty">Spielen wird eingebunden … ({squads.length} Kader, Vorauswahl {preselectSquad ?? 'keine'})</p>}
+        {tab === 'spielen' && (
+          <PlayHub squads={squads} preselectSquadId={preselectSquad} muted={settings.muted} onGoDraft={() => go('draft')} onGoTeam={() => go('team')} />
+        )}
         {tab === 'credits' && <Credits onClose={() => go('packs')} />}
         <footer className="disclaimer">
           Eigener Simulator · fiktive Bewertungen und Ziehchancen · keine Verbindung zu EA · Version {__BUILD_ID__}
