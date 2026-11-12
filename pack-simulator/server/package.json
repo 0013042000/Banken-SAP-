@@ -1,0 +1,16 @@
+{
+  "name": "pack-simulator-game-server",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Spielserver für den Online-Fußballmodus: führt die Simulation aus und liefert optional das gebaute Frontend aus ../dist.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node server.ts"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
