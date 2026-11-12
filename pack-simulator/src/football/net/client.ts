@@ -123,7 +123,7 @@ export const createRoomClient = (url: string): RoomClient => {
       session = { code: message.code, token: message.token, graceMs: message.graceMs };
       update({ status: ConnStatus.Connected, seat: message.seat, error: null });
     },
-    room: (message) => update({ room: message.room }),
+    room: (message) => update({ room: message.room, error: null }),
     start: (message) => {
       const frame = decodeFrame(message.frame);
       if (!frame) return;
@@ -194,11 +194,14 @@ export const createRoomClient = (url: string): RoomClient => {
       ws.addEventListener('message', (event) => {
         if (socket === ws) onMessage(event.data);
       });
-      ws.addEventListener('close', () => {
+      const onGone = (): void => {
         if (socket !== ws) return;
-        socket = null;
+        dropSocket();
         onDown();
-      });
+      };
+      ws.addEventListener('close', onGone);
+      // Sperrt die Seite die Verbindung per Sicherheitsrichtlinie, meldet der Browser nur „error“ und kein „close“.
+      ws.addEventListener('error', onGone);
     } catch {
       // Der Browser hat die Verbindung gar nicht erst erlaubt (z. B. Sicherheitsrichtlinie der Seite).
       socket = null;

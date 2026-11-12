@@ -128,7 +128,7 @@ export const MatchScreen = ({ driver, muted, online, notice, statusLabel, onEnde
     const input = createInput({ stickZone, stickBase, stickKnob, pass, shoot, swap }, () => {
       audioRef.current?.unlock();
       setPaused(!pausedRef.current);
-    });
+    }, () => !pausedRef.current);
     const sample = (): TeamInput => (flip ? flipInput(input.sample()) : input.sample());
     const resize = (): void => renderer.resize(stage.clientWidth, stage.clientHeight);
     const observer = new ResizeObserver(resize);

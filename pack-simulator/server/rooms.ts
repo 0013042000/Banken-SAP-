@@ -103,6 +103,8 @@ const MAX_STRIKES = 8;
 const CLOSE_POLICY = 1008;
 const CLOSE_GOING_AWAY = 1001;
 const CODE_ATTEMPTS = 50;
+/** Obergrenze gleichzeitig offener Räume als Schutz vor Überlastung. */
+const MAX_ROOMS = 500;
 const MEDIUM = 1;
 const NO_SEAT = -1;
 
@@ -234,7 +236,7 @@ export const startGameServer = async (options: GameServerOptions = {}): Promise<
 
   const handlers: { readonly [K in ClientMessage['t']]: Handler<K> } = {
     create: (socket, session) => {
-      const code = session.code ? null : freshCode();
+      const code = session.code || rooms.size >= MAX_ROOMS ? null : freshCode();
       if (!code) return fail(socket, ErrorCode.NotAllowed);
       const seat = newSeat(socket);
       const room: Room = {

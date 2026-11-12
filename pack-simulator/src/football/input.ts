@@ -44,7 +44,11 @@ const FORM_TAGS: readonly string[] = ['INPUT', 'TEXTAREA', 'SELECT'];
 const isTyping = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement && FORM_TAGS.includes(target.tagName);
 
-export const createInput = (parts: TouchParts, onPause: () => void): InputSource => {
+/**
+ * `isActive` meldet, ob gerade gespielt wird. Ist z. B. der Pause-Dialog offen, bleiben alle Tasten
+ * außer Pause unberührt, damit sich der Dialog normal mit der Tastatur bedienen lässt.
+ */
+export const createInput = (parts: TouchParts, onPause: () => void, isActive: () => boolean): InputSource => {
   const { stickZone, stickBase, stickKnob } = parts;
   const buttons: Readonly<Record<ButtonName, HTMLElement>> = { pass: parts.pass, shoot: parts.shoot, swap: parts.swap };
   const keys = new Set<string>();
@@ -123,13 +127,14 @@ export const createInput = (parts: TouchParts, onPause: () => void): InputSource
   });
 
   listen<KeyboardEvent>(window, 'keydown', (event) => {
-    if (isTyping(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
+    // defaultPrevented: Ein offener Dialog hat die Taste (Escape) schon verarbeitet – sonst würde die Pause sofort wieder aufgehen.
+    if (event.defaultPrevented || isTyping(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
     const button = BUTTON_KEYS[event.code];
     if (PAUSE_KEYS.includes(event.code)) {
       if (!event.repeat) onPause();
       return;
     }
-    if (!button && !MOVE_KEYS[event.code]) return;
+    if (!isActive() || (!button && !MOVE_KEYS[event.code])) return;
     event.preventDefault();
     if (button && !event.repeat) press(button);
     keys.add(event.code);
