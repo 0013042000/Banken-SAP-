@@ -79,6 +79,8 @@ interface Session {
   readonly tokens: number;
   readonly refilledAt: number;
   readonly strikes: number;
+  /** Nachrichten über dem Tempolimit in Folge; kurze Schwälle werden verworfen, Dauerfeuer trennt. */
+  readonly overflow: number;
   readonly alive: boolean;
 }
 
@@ -87,7 +89,7 @@ type Handler<TType extends ClientMessage['t']> =
 
 const DEFAULT_GRACE_MS = 25_000;
 const DEFAULT_IDLE_MS = 900_000;
-const DEFAULT_HEARTBEAT_MS = 5_000;
+const DEFAULT_HEARTBEAT_MS = 2_000;
 const DEFAULT_SWEEP_MS = 250;
 const LOOP_MS = 8;
 const MS_PER_SECOND = 1000;
@@ -100,6 +102,8 @@ const MAX_SEED = 2_147_483_647;
 const BUCKET_CAPACITY = 90;
 const BUCKET_PER_SECOND = 70;
 const MAX_STRIKES = 8;
+/** So viele Nachrichten über dem Tempolimit werden still verworfen (z. B. Schwall nach einem Funkloch), bevor getrennt wird. */
+const MAX_OVERFLOW = 400;
 const CLOSE_POLICY = 1008;
 const CLOSE_GOING_AWAY = 1001;
 const CODE_ATTEMPTS = 50;
@@ -321,11 +325,16 @@ export const startGameServer = async (options: GameServerOptions = {}): Promise<
     const at = now();
     const tokens = Math.min(BUCKET_CAPACITY, session.tokens + ((at - session.refilledAt) * BUCKET_PER_SECOND) / MS_PER_SECOND);
     if (tokens < 1) {
-      fail(socket, ErrorCode.TooFast);
-      socket.close(CLOSE_POLICY);
+      // Über dem Limit: Nachricht verwerfen. Erst anhaltendes Dauerfeuer gilt als Missbrauch und trennt.
+      const overflow = session.overflow + 1;
+      sessions.set(socket, { ...session, tokens, refilledAt: at, overflow });
+      if (overflow > MAX_OVERFLOW) {
+        fail(socket, ErrorCode.TooFast);
+        socket.close(CLOSE_POLICY);
+      }
       return null;
     }
-    return { ...session, tokens: tokens - 1, refilledAt: at };
+    return { ...session, tokens: tokens - 1, refilledAt: at, overflow: 0 };
   };
 
   const reject = (socket: WebSocket, session: Session): void => {
@@ -439,7 +448,7 @@ export const startGameServer = async (options: GameServerOptions = {}): Promise<
   const sockets = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES });
 
   sockets.on('connection', (socket: WebSocket) => {
-    sessions.set(socket, { code: null, seat: 0, tokens: BUCKET_CAPACITY, refilledAt: now(), strikes: 0, alive: true });
+    sessions.set(socket, { code: null, seat: 0, tokens: BUCKET_CAPACITY, refilledAt: now(), strikes: 0, overflow: 0, alive: true });
     socket.on('message', (data, isBinary) => onMessage(socket, data, isBinary));
     socket.on('pong', () => {
       const session = sessions.get(socket);

@@ -39,7 +39,11 @@ const SWEEP_MS = 20;
 const SETTLE_MS = 150;
 const STAT = 80;
 const ONE_MINUTE = DURATIONS[0];
-const FLOOD = 400;
+/** Dauerfeuer weit über dem Tempolimit. */
+const FLOOD = 1200;
+/** Kurzer Schwall, wie er nach einem Funkloch gestaut ankommen kann. */
+const BURST = 200;
+const BURST_SETTLE_MS = 1500;
 const STRIKES = 8;
 const MIN_ADVANCE = 3;
 const HTTP_OK = 200;
@@ -354,6 +358,18 @@ describe('Abwehr ungültiger Daten', () => {
     expect((await flood.next('error')).code).toBe(ErrorCode.TooFast);
     expect(await flood.closed).toBe(CLOSE_POLICY);
     expect(flood.all.filter((m) => m.t === 'pong').length).toBeLessThan(FLOOD);
+  }, TEST_TIMEOUT_MS);
+
+  it('ein kurzer Schwall (z. B. nach einem Funkloch) wird verworfen, ohne die Verbindung zu trennen', async () => {
+    const server = await boot();
+    const burst = await connect(server);
+    Array.from({ length: BURST }).forEach((_, n) => burst.send({ t: 'ping', n }));
+    await new Promise((resolve) => { setTimeout(resolve, BURST_SETTLE_MS); });
+    expect(burst.all.some((m) => m.t === 'error')).toBe(false);
+    expect(burst.all.filter((m) => m.t === 'pong').length).toBeLessThan(BURST);
+    // Danach funktioniert die Verbindung normal weiter.
+    burst.send({ t: 'create' });
+    expect((await burst.next('joined')).code).toMatch(/^[A-Z2-9]+$/);
   }, TEST_TIMEOUT_MS);
 });
 

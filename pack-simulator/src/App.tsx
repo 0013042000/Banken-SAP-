@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactElement } from 'react';
 import type { Player } from './data/players';
 import type { SquadOption } from './football/contract';
+import { roomCodeFromHash } from './football/net/protocol';
 import { useMotion } from './game/motion';
 import {
   getStorageOk, loadCollection, loadSettings, loadTeamRaw, loadTeamsRaw, saveCollection, saveSettings, saveTeams, subscribeStorageStatus,
@@ -32,7 +33,8 @@ const TABS: readonly { readonly id: Exclude<Tab, 'credits'>; readonly icon: stri
 const ownedSet = (c: Coll): Set<string> => new Set(Object.keys(c).filter((id) => (c[id] ?? 0) > 0));
 
 export default function App(): ReactElement {
-  const [tab, setTab] = useState<Tab>('packs');
+  // Ein Einladungslink (#raum-CODE) führt direkt in den Bereich „Spielen“.
+  const [tab, setTab] = useState<Tab>(() => (roomCodeFromHash(window.location.hash) ? 'spielen' : 'packs'));
   const [packsView, setPacksView] = useState<PacksView>('frei');
   const [collection, setCollection] = useState<Coll>(() => loadCollection());
   const [settings, setSettings] = useState<Settings>(() => loadSettings());

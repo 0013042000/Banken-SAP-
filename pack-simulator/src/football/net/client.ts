@@ -62,9 +62,16 @@ type MessageHandler<TType extends ServerMessage['t']> = (message: Extract<Server
 
 const CONNECT_TIMEOUT_MS = 6000;
 const RETRY_MS = 1200;
-const PING_MS = 2000;
-/** So lange ohne jede Nachricht gilt die Verbindung als abgerissen. */
-const STALE_MS = 7000;
+const PING_MS = 1000;
+/** So lange ohne jede Nachricht gilt die Verbindung als abgerissen; danach wird mit frischer Verbindung neu beigetreten. */
+const STALE_MS = 3000;
+/**
+ * Schweigt der Server länger als das, werden keine Steuerbefehle mehr nachgeschoben. Sonst staut
+ * sich bei einem Funkloch ein Schwall auf, der beim Wiederverbinden als Überflutung ankäme.
+ */
+const QUIET_MS = 500;
+/** Steuerbefehle werden auch dann ausgelassen, wenn noch ungesendete Daten in der Leitung hängen. */
+const BACKLOG_BYTES = 512;
 
 const INITIAL: ClientState = Object.freeze({ status: ConnStatus.Idle, seat: null, room: null, error: null, start: null });
 
@@ -106,8 +113,14 @@ export const createRoomClient = (url: string): RoomClient => {
     }
   };
 
+  /** Steuerbefehle sind Momentaufnahmen: Bei stockender Leitung ist Auslassen besser als Nachreichen. */
+  const stalled = (ws: WebSocket): boolean =>
+    ws.bufferedAmount > BACKLOG_BYTES || Date.now() - lastMessageAt > QUIET_MS;
+
   const sendNow = (message: ClientMessage): void => {
-    if (socket?.readyState === WebSocket.OPEN) socket.send(encodeMessage(message));
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    if (message.t === 'input' && stalled(socket)) return;
+    socket.send(encodeMessage(message));
   };
 
   const giveUp = (status: ConnStatus): void => {
